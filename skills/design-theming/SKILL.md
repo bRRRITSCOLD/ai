@@ -95,3 +95,7 @@ Write a small build script (`scripts/build-tokens.js`) that iterates the `themes
 - `dist/<brand>/tokens.js` (JS object export)
 
 This keeps the theme pipeline maintainable as the brand count grows without duplicating logic — one script handles all brands (`principles-dry-kiss`).
+
+### 7. Per-brand Tailwind themes
+
+Each brand's resolved token set feeds a `tailwind.tokens.<brand>.js` file (same structure as the base `tailwind.tokens.js` described in `react-component-library`). The Tailwind config swaps in the brand-specific extension at build time, so every Tailwind utility class (`bg-background-primary`, `text-brand-teal-500`, etc.) resolves to the correct per-brand value without touching component code. CSS custom properties emitted alongside the Tailwind theme (`dist/<brand>/tokens.css`) are consumed by Tailwind's `--tw-*` variables for runtime theming (e.g. dark-mode or runtime brand switching via a CSS class on `:root`).

@@ -1,6 +1,6 @@
 ---
 name: react-component-library
-description: Builds a reusable, accessible, typed React component library (framework-agnostic, used by TanStack Start apps) from design tokens and Figma designs. Invoked when the user says "build the component library", "implement these components", "create React components from tokens", "build a design-system component library", "scaffold components from Figma", "implement design tokens in code", or "add accessible components". Reads tokens.json (W3C DTCG) produced by the UX designer and maps Figma auto-layout to CSS flex/grid.
+description: Builds a reusable, accessible, typed React component library (framework-agnostic, used by TanStack Start apps) from design tokens and Figma designs. Invoked when the user says "build the component library", "implement these components", "create React components from tokens", "build a design-system component library", "scaffold components from Figma", "implement design tokens in code", "add accessible components", "style with tailwind", "use cva", "class-variance-authority", or "add component variants". Reads tokens.json (W3C DTCG) produced by the UX designer and maps Figma auto-layout to CSS flex/grid. Components are styled with TailwindCSS utility classes; variants are defined with cva (class-variance-authority); classes are merged with the cn() helper (clsx + tailwind-merge).
 ---
 
 # React Component Library Skill
@@ -39,7 +39,60 @@ Transform tokens into CSS custom properties or a Tailwind theme extension. Resol
 }
 ```
 
-Or, for a Tailwind project, emit `tailwind.tokens.js` that extends `theme.colors`, `theme.spacing`, `theme.borderRadius`, and `theme.boxShadow` from the resolved token values.
+For Tailwind projects (the default), emit `tailwind.tokens.js` that extends the Tailwind theme directly from resolved token values — design tokens are the single source of truth for Tailwind's theme:
+
+```js
+// tokens/tailwind.tokens.js — generated from tokens.json, do not edit by hand
+// ESM module — requires "type": "module" in package.json (or rename to .mjs)
+import { readFileSync } from 'fs';
+
+const tokens = JSON.parse(readFileSync(new URL('../tokens.json', import.meta.url)));
+
+// Convert camelCase DTCG token keys to kebab-case for Tailwind utility classes.
+// e.g. "primaryHover" → "primary-hover" → bg-background-primary-hover resolves.
+function toKebab(str) {
+  return str.replace(/([A-Z])/g, (m) => `-${m.toLowerCase()}`);
+}
+
+/** @type {import('tailwindcss').Config['theme']} */
+const tokenTheme = {
+  colors: {
+    blue: { 500: tokens.color.blue['500'].$value },
+    background: Object.fromEntries(
+      Object.entries(tokens.color.background).map(([k, v]) => [toKebab(k), v.$value])
+    ),
+    // After toKebab, keys become: "primary", "primary-hover"
+    // → bg-background-primary, bg-background-primary-hover
+  },
+  spacing: {
+    4: tokens.spacing['4'].$value,   // "16px"
+  },
+  fontSize: {
+    base: [tokens.fontSize.base.$value, { lineHeight: '1.5' }],
+  },
+  borderRadius: {
+    md: tokens.borderRadius.md.$value,
+  },
+  boxShadow: {
+    sm: `${tokens.shadow.sm.$value.offsetX} ${tokens.shadow.sm.$value.offsetY} ${tokens.shadow.sm.$value.blur} ${tokens.shadow.sm.$value.spread} ${tokens.shadow.sm.$value.color}`,
+  },
+};
+
+export default tokenTheme;
+```
+
+Reference it in `tailwind.config.ts`:
+
+```ts
+import tokenTheme from './src/tokens/tailwind.tokens';
+
+export default {
+  content: ['./src/**/*.{ts,tsx}'],
+  theme: { extend: tokenTheme },
+} satisfies import('tailwindcss').Config;
+```
+
+This means every Tailwind class (`bg-background-primary`, `rounded-md`, `shadow-sm`) resolves to a token — no hard-coded values in component files.
 
 Validate that `tokens.json` is well-formed JSON:
 
@@ -81,13 +134,79 @@ src/
       index.ts            # barrel export
   tokens/
     tokens.css            # generated CSS custom properties
-    tailwind.tokens.js    # generated Tailwind theme extension (if applicable)
+    tailwind.tokens.js    # generated Tailwind theme extension (Tailwind is the default)
   index.ts                # public API barrel
 ```
 
 Follow `principles-pragmatic-solid` interface segregation: the `index.ts` public API exports only what callers need. Internal helpers, token transforms, and test utilities are not re-exported.
 
-### 4. Implement components — TDD first (`principles-tdd`)
+### 4. Style components with Tailwind + cva
+
+Install the styling utilities once per project:
+
+```bash
+npm install tailwindcss clsx tailwind-merge class-variance-authority
+```
+
+Create a `cn()` helper for safe class merging (handles conditional classes and Tailwind class conflicts):
+
+```ts
+// src/lib/cn.ts
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+```
+
+Define component variants with `cva`. Each variant maps a prop value to a set of Tailwind classes derived from the token-seeded theme:
+
+```ts
+// src/components/Button/Button.tsx
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '../../lib/cn';
+
+const buttonVariants = cva(
+  // base classes — always applied
+  'inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  {
+    variants: {
+      variant: {
+        primary:   'bg-background-primary text-white hover:bg-background-primary-hover',
+        secondary: 'border border-current bg-transparent hover:bg-background-primary/10',
+        ghost:     'bg-transparent hover:bg-background-primary/10',
+      },
+      size: {
+        sm: 'h-8  px-3 text-sm',
+        md: 'h-10 px-4 text-base',
+        lg: 'h-12 px-6 text-lg',
+      },
+    },
+    defaultVariants: { variant: 'primary', size: 'md' },
+  }
+);
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {}
+
+export function Button({ className, variant, size, ...props }: ButtonProps) {
+  return (
+    <button
+      className={cn(buttonVariants({ variant, size }), className)}
+      {...props}
+    />
+  );
+}
+```
+
+Key rules:
+- All class names in `cva` must correspond to a Tailwind token key (colors from `tailwind.tokens.js`, spacing, etc.) — never raw hex values or `px` literals.
+- Accept `className` on every component and merge it last via `cn()` so callers can add one-off overrides without breaking the variant system.
+- Export `buttonVariants` alongside the component so other components can compose the same class logic without importing the JSX element.
+
+### 5. Implement components — TDD first (`principles-tdd`)
 
 For each component, follow the red/green/refactor cycle:
 
@@ -103,7 +222,7 @@ Accessibility requirements (non-negotiable):
 
 Type all props with TypeScript interfaces in `Button.types.ts`. Export the interface from the barrel so consumers can import prop types without importing the component.
 
-### 5. Write Storybook stories
+### 6. Write Storybook stories
 
 Co-locate a `*.stories.tsx` file with each component. Cover:
 - Default state
@@ -119,13 +238,13 @@ npx storybook dev -p 6006
 
 Use the official Figma MCP read tools (`get_design_context`, `search_design_system`) via the **`figma`** companion plugin to inspect the live Figma design and confirm pixel-level alignment with the implementation.
 
-### 6. Export a clean public API
+### 7. Export a clean public API
 
 The library's `src/index.ts` barrel must satisfy interface segregation (`principles-pragmatic-solid`): callers import only what they use.
 
 ```ts
 // src/index.ts — public API
-export { Button } from './components/Button';
+export { Button, buttonVariants } from './components/Button';
 export type { ButtonProps } from './components/Button';
 export { Card } from './components/Card';
 export type { CardProps } from './components/Card';
@@ -141,7 +260,7 @@ npx jest --passWithNoTests
 
 All tests must be green. No skipped tests without a documented reason.
 
-### 7. Validate before handoff
+### 8. Validate before handoff
 
 - `npx tsc --noEmit` — no TypeScript errors.
 - `npx jest` — all tests green.
