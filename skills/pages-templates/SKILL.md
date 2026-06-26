@@ -1,6 +1,6 @@
 ---
 name: pages-templates
-description: Composes React routes and layout templates with TanStack Start from the component library, following the UX designer's page and template structure. Invoked when the user says "build pages", "compose templates", "implement the layout", "turn this design into a route", "wire up the page structure", "scaffold TanStack Start routes from designs", "implement the template layer", "build page from Figma", "add a form", "build a form", "tanstack form", "useForm", "form validation", or "shadcn form". Keeps routes thin and pushes domain logic to the backend.
+description: Composes React routes and layout templates with TanStack Start from the component library, following the UX designer's page and template structure. Invoked when the user says "build pages", "compose templates", "implement the layout", "turn this design into a route", "wire up the page structure", "scaffold TanStack Start routes from designs", "implement the template layer", "build page from Figma", "add a form", "build a form", "tanstack form", "tanstack form useForm", or "form validation". Keeps routes thin and pushes domain logic to the backend.
 ---
 
 # Pages & Templates Skill
@@ -159,11 +159,16 @@ import { Label } from '@/components/Label';
 import { Button } from '@/components/Button';
 import { createServerFn } from '@tanstack/react-start';
 
-const submitSignup = createServerFn({ method: 'POST' }).handler(
-  async ({ data }: { data: { email: string; password: string } }) => {
-    // domain service call — never inline business logic in the route
-  }
-);
+const submitSignup = createServerFn({ method: 'POST' })
+  .validator((raw: unknown) => {
+    // Inline validator — a Zod schema adapter will replace this in issue #6
+    const d = raw as { email: string; password: string };
+    if (!d.email || !d.password) throw new Error('email and password are required');
+    return d;
+  })
+  .handler(async ({ data }) => {
+    // data is typed as { email: string; password: string } — domain service call here
+  });
 
 export function SignupForm() {
   const form = useForm({
@@ -188,10 +193,12 @@ export function SignupForm() {
         validators={{
           onChange: ({ value }) =>
             !value ? 'Email is required' : undefined,
-          onBlur: ({ value }) =>
-            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-              ? 'Enter a valid email'
-              : undefined,
+          onBlur: ({ value }) => {
+              if (!value) return undefined;
+              return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+                ? 'Enter a valid email'
+                : undefined;
+            },
         }}
       >
         {(field) => (
@@ -203,9 +210,9 @@ export function SignupForm() {
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
-              aria-invalid={field.state.meta.errors.length > 0}
+              aria-invalid={field.state.meta.isTouched && field.state.meta.errors.length > 0}
             />
-            {field.state.meta.errors.length > 0 && (
+            {field.state.meta.isTouched && field.state.meta.errors.length > 0 && (
               <p className="text-sm text-destructive" role="alert">
                 {field.state.meta.errors.join(', ')}
               </p>
@@ -230,9 +237,9 @@ export function SignupForm() {
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
-              aria-invalid={field.state.meta.errors.length > 0}
+              aria-invalid={field.state.meta.isTouched && field.state.meta.errors.length > 0}
             />
-            {field.state.meta.errors.length > 0 && (
+            {field.state.meta.isTouched && field.state.meta.errors.length > 0 && (
               <p className="text-sm text-destructive" role="alert">
                 {field.state.meta.errors.join(', ')}
               </p>
@@ -242,12 +249,10 @@ export function SignupForm() {
       </form.Field>
 
       {/* Form-level subscription for submit button state */}
-      <form.Subscribe
-        selector={(state) => [state.canSubmit, state.isSubmitting]}
-      >
-        {([canSubmit, isSubmitting]) => (
-          <Button type="submit" disabled={!canSubmit || isSubmitting}>
-            {isSubmitting ? 'Submitting…' : 'Sign up'}
+      <form.Subscribe selector={(state) => state.canSubmit}>
+        {(canSubmit) => (
+          <Button type="submit" disabled={!canSubmit}>
+            Sign up
           </Button>
         )}
       </form.Subscribe>
@@ -284,10 +289,18 @@ shadcn/ui components (Radix primitives + Tailwind styling) are purely presentati
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SignupForm } from './signup';
 
-it('shows email validation error on blur', async () => {
-  render(<SignupForm />);
-  fireEvent.blur(screen.getByLabelText(/email/i));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Email is required');
+describe('SignupForm', () => {
+  beforeAll(async () => {});
+  beforeEach(async () => {});
+  afterEach(async () => {});
+  afterAll(async () => {});
+
+  it('shows email format error after typing an invalid email and blurring', async () => {
+    render(<SignupForm />);
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'notanemail' } });
+    fireEvent.blur(screen.getByLabelText(/email/i));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Enter a valid email');
+  });
 });
 ```
 
@@ -295,7 +308,7 @@ it('shows email validation error on blur', async () => {
 
 Routes must NOT:
 - Import domain models or aggregate types directly.
-- Contain business rules (pricing calculations, authorization logic, validation).
+- Contain business rules (pricing calculations, authorization logic, or domain/business-rule validation). Note: UI-layer field validation (format checks, required fields) inside `form.Field` validators is allowed — only domain rules belong in the backend.
 - Call databases, external APIs, or file systems directly — use `createServerFn` or a backend service.
 - Hold component state that belongs in a domain store or server.
 
