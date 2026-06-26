@@ -146,8 +146,10 @@ Use `@tanstack/react-form` for all interactive forms in routes. It is headless (
 Install once per project:
 
 ```bash
-npm install @tanstack/react-form zod
+npm install @tanstack/react-form zod@^4
 ```
+
+> Use **zod v4+**: zod schemas only expose the `~standard` (Standard Schema) interface from v4 onward, which is what TanStack Form and `createServerFn().validator()` consume to validate a schema directly. On zod v3 the Standard Schema path silently fails. Validators accept `onChange` (live, per-keystroke feedback) or `onBlur` (on focus-out) — the examples use `onBlur` to avoid noisy errors while typing; `onChange` is equally supported.
 
 #### Pattern — `useForm` + `form.Field` render prop
 
