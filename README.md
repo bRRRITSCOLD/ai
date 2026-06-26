@@ -7,7 +7,7 @@ Personal AI dev-team plugin for Claude Code. Four specialist agents — UX desig
 A Claude Code plugin that gives you a complete feature-delivery team:
 
 - **ux-designer** — authors design systems and UX work directly in Figma using the official Figma MCP write tools; extracts tokens for code consumers; wires Code Connect so Dev Mode shows real component examples.
-- **frontend-engineer** — takes Figma designs all the way to production-ready React/Next.js code; builds typed, accessible component libraries from `tokens.json`; composes pages and templates.
+- **frontend-engineer** — takes Figma designs all the way to production-ready React + TanStack Start code; builds typed, accessible component libraries from `tokens.json`; composes pages and templates.
 - **backend-engineer** — designs and implements high-performance services in Go, Node/TypeScript, and Rust; deploys on AWS, Cloudflare, and Hetzner; applies hexagonal/ports-and-adapters architecture throughout.
 - **staff-engineer** — reviews code from all three engineer agents against the team's principle skills plus correctness, security, and performance; does not write code.
 
@@ -47,7 +47,7 @@ Read tools used by the frontend-engineer work at any seat level.
 | Agent | Role | Key skills |
 |---|---|---|
 | `ux-designer` | Authors design systems, components, frames, and variables directly in Figma; extracts `tokens.json`; wires Code Connect | `figma-design-system`, `figma-code-connect`, `design-theming` |
-| `frontend-engineer` | Reads Figma outputs and implements React/Next.js component libraries, pages, and templates | `react-component-library`, `code-connect-impl`, `pages-templates` |
+| `frontend-engineer` | Reads Figma outputs and implements React + TanStack Start component libraries, pages, and templates | `react-component-library`, `code-connect-impl`, `pages-templates` |
 | `backend-engineer` | Builds Go / Node / Rust services deployed on AWS, Cloudflare, or Hetzner; hexagonal architecture, IaC-first | `backend-service-patterns`, `cloud-infra` |
 | `staff-engineer` | Reviews all engineer output for principle compliance, correctness, security, and performance | `code-review` (read-only toolset) |
 

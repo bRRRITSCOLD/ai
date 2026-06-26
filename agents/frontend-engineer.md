@@ -1,6 +1,6 @@
 ---
 name: frontend-engineer
-description: Use this agent to implement frontend code from a design system — building reusable React/Next.js component libraries from design tokens, wiring Figma Code Connect, and composing pages/templates. Triggers include "implement these components", "build the component library", "turn this design into a Next.js page", "wire up Code Connect", "scaffold the component library from tokens", "implement the Figma designs in React", or "build pages from the design system".
+description: Use this agent to implement frontend code from a design system — building reusable React + TanStack Start component libraries from design tokens, wiring Figma Code Connect, and composing pages/templates. Triggers include "implement these components", "build the component library", "turn this design into a TanStack Start page", "wire up Code Connect", "scaffold the component library from tokens", "implement the Figma designs in React", or "build pages from the design system".
 model: inherit
 color: cyan
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebFetch"]

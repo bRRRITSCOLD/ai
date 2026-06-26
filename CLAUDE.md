@@ -15,7 +15,7 @@ This is a **Claude Code plugin** — the `ai` plugin from the `bRRRITSCOLD/ai` m
 
 agents/
   ux-designer.md       # authors design systems in Figma; extracts tokens
-  frontend-engineer.md # Figma → React/Next.js component libraries + pages
+  frontend-engineer.md # Figma → React + TanStack Start component libraries + pages
   backend-engineer.md  # Go/Node/Rust services on AWS/Cloudflare/Hetzner
   staff-engineer.md    # read-only reviewer against all four principle skills
 
@@ -29,7 +29,7 @@ skills/
   design-theming/          # per-brand token overrides
   react-component-library/ # typed, accessible React components from tokens
   code-connect-impl/       # *.figma.tsx mapping files; npx figma connect publish
-  pages-templates/         # Next.js layout templates and page routes
+  pages-templates/         # TanStack Start layout templates and page routes
   backend-service-patterns/ # hexagonal arch, per-language patterns
   cloud-infra/             # AWS/Cloudflare/Hetzner IaC and observability
   code-review/             # structured review checklist used by staff-engineer
