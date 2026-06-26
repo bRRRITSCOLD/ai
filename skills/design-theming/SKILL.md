@@ -22,7 +22,7 @@ Theming works by replacing semantic token values (and occasionally introducing b
 
 ### 2. Identify what varies per brand
 
-From Figma (using the `figma-dev-mode` MCP, variable modes) or from a brand brief, collect:
+From Figma (using the official Figma MCP — `get_variable_defs` / `search_design_system` — to read variable modes) or from a brand brief, collect:
 
 - **Brand palette** — the set of color primitives unique to this brand (e.g. `color.brand.teal.500`).
 - **Semantic overrides** — which semantic roles map to which brand primitives (e.g. `color.background.primary → {color.brand.teal.500}`).
