@@ -1,6 +1,6 @@
 ---
 name: pages-templates
-description: Composes React routes and layout templates with TanStack Start from the component library, following the UX designer's page and template structure. Invoked when the user says "build pages", "compose templates", "implement the layout", "turn this design into a route", "wire up the page structure", "scaffold TanStack Start routes from designs", "implement the template layer", or "build page from Figma". Keeps routes thin and pushes domain logic to the backend.
+description: Composes React routes and layout templates with TanStack Start from the component library, following the UX designer's page and template structure. Invoked when the user says "build pages", "compose templates", "implement the layout", "turn this design into a route", "wire up the page structure", "scaffold TanStack Start routes from designs", "implement the template layer", "build page from Figma", "add a form", "build a form", "tanstack form", "useForm", "form validation", or "shadcn form". Keeps routes thin and pushes domain logic to the backend.
 ---
 
 # Pages & Templates Skill
@@ -138,6 +138,158 @@ describe('DashboardPage', () => {
 ```
 
 Mock backend service calls (`getDashboardData`) via dependency injection or module mocks. Routes must be independently testable without a live backend. For full UI flows, write `*.e2e.test.ts` with Playwright against a running TanStack Start dev server.
+
+### 5a. Build forms with TanStack Form (headless, shadcn-compatible)
+
+Use `@tanstack/react-form` for all interactive forms in routes. It is headless (no built-in styles), so it composes cleanly with shadcn/ui primitives (unstyled Radix + Tailwind) — TanStack Form owns state and validation; the component library owns visual rendering.
+
+Install once per project:
+
+```bash
+npm install @tanstack/react-form
+```
+
+#### Pattern — `useForm` + `form.Field` render prop
+
+```tsx
+// src/routes/signup.tsx (or a co-located form component)
+import { useForm } from '@tanstack/react-form';
+import { Input } from '@/components/Input';
+import { Label } from '@/components/Label';
+import { Button } from '@/components/Button';
+import { createServerFn } from '@tanstack/react-start';
+
+const submitSignup = createServerFn({ method: 'POST' }).handler(
+  async ({ data }: { data: { email: string; password: string } }) => {
+    // domain service call — never inline business logic in the route
+  }
+);
+
+export function SignupForm() {
+  const form = useForm({
+    defaultValues: { email: '', password: '' },
+    onSubmit: async ({ value }) => {
+      await submitSignup({ data: value });
+    },
+  });
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        form.handleSubmit();
+      }}
+      className="flex flex-col gap-4"
+    >
+      {/* Field-level validation */}
+      <form.Field
+        name="email"
+        validators={{
+          onChange: ({ value }) =>
+            !value ? 'Email is required' : undefined,
+          onBlur: ({ value }) =>
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+              ? 'Enter a valid email'
+              : undefined,
+        }}
+      >
+        {(field) => (
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={field.name}>Email</Label>
+            <Input
+              id={field.name}
+              type="email"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+              aria-invalid={field.state.meta.errors.length > 0}
+            />
+            {field.state.meta.errors.length > 0 && (
+              <p className="text-sm text-destructive" role="alert">
+                {field.state.meta.errors.join(', ')}
+              </p>
+            )}
+          </div>
+        )}
+      </form.Field>
+
+      <form.Field
+        name="password"
+        validators={{
+          onChange: ({ value }) =>
+            value.length < 8 ? 'Password must be at least 8 characters' : undefined,
+        }}
+      >
+        {(field) => (
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={field.name}>Password</Label>
+            <Input
+              id={field.name}
+              type="password"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+              aria-invalid={field.state.meta.errors.length > 0}
+            />
+            {field.state.meta.errors.length > 0 && (
+              <p className="text-sm text-destructive" role="alert">
+                {field.state.meta.errors.join(', ')}
+              </p>
+            )}
+          </div>
+        )}
+      </form.Field>
+
+      {/* Form-level subscription for submit button state */}
+      <form.Subscribe
+        selector={(state) => [state.canSubmit, state.isSubmitting]}
+      >
+        {([canSubmit, isSubmitting]) => (
+          <Button type="submit" disabled={!canSubmit || isSubmitting}>
+            {isSubmitting ? 'Submitting…' : 'Sign up'}
+          </Button>
+        )}
+      </form.Subscribe>
+    </form>
+  );
+}
+```
+
+#### Key API points
+
+| Concept | API |
+|---|---|
+| Form instance | `useForm({ defaultValues, onSubmit })` |
+| Field render prop | `<form.Field name="x">{(field) => …}</form.Field>` |
+| Field value | `field.state.value` |
+| Change handler | `field.handleChange(newValue)` |
+| Blur handler | `field.handleBlur` |
+| Field errors | `field.state.meta.errors` (string[]) |
+| Form state | `<form.Subscribe selector={…}>{…}</form.Subscribe>` |
+| Submit | `form.handleSubmit()` (called inside native `onSubmit`) |
+
+#### Validation
+
+Validators on `form.Field` accept `onChange`, `onBlur`, and `onSubmit` keys. Each receives `{ value }` and returns an error string or `undefined`. Validation is pluggable — a Zod schema adapter (`@tanstack/zod-form-adapter`) will be introduced in a later issue to replace inline validator functions with schema-driven validation.
+
+#### Shadcn/ui compatibility note
+
+shadcn/ui components (Radix primitives + Tailwind styling) are purely presentational — they have no opinion on form state. Bind TanStack Form's `field.state.value` to the input's `value` prop and `field.handleChange` to `onChange`; the components compose without any adapter layer. Error messages rendered from `field.state.meta.errors` follow the same visual style as shadcn's `<FormMessage>` — use `text-sm text-destructive` (or the `FormMessage` component if shadcn's `<Form>` wrapper is installed).
+
+#### Test forms at the unit tier
+
+```tsx
+// src/routes/signup.unit.test.tsx
+import { render, screen, fireEvent } from '@testing-library/react';
+import { SignupForm } from './signup';
+
+it('shows email validation error on blur', async () => {
+  render(<SignupForm />);
+  fireEvent.blur(screen.getByLabelText(/email/i));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Email is required');
+});
+```
 
 ### 6. Keep routes thin — enforce the boundary
 
