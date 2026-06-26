@@ -1,11 +1,11 @@
 ---
 name: react-component-library
-description: Builds a reusable, accessible, typed React/Next.js component library from design tokens and Figma designs. Invoked when the user says "build the component library", "implement these components", "create React components from tokens", "build a design-system component library", "scaffold components from Figma", "implement design tokens in code", or "add accessible components". Reads tokens.json (W3C DTCG) produced by the UX designer and maps Figma auto-layout to CSS flex/grid.
+description: Builds a reusable, accessible, typed React component library (framework-agnostic, used by TanStack Start apps) from design tokens and Figma designs. Invoked when the user says "build the component library", "implement these components", "create React components from tokens", "build a design-system component library", "scaffold components from Figma", "implement design tokens in code", or "add accessible components". Reads tokens.json (W3C DTCG) produced by the UX designer and maps Figma auto-layout to CSS flex/grid.
 ---
 
 # React Component Library Skill
 
-Build a reusable, accessible, type-safe React component library that is a faithful code mirror of the Figma design system. `tokens.json` (W3C DTCG format, produced by the `figma-design-system` skill) is the single source of truth for all visual values — never hard-code a color, size, or shadow.
+Build a reusable, accessible, type-safe React component library that is a faithful code mirror of the Figma design system. The library is framework-agnostic and designed to compose cleanly into TanStack Start routes and layout templates — no framework-specific imports, no RSC assumptions. `tokens.json` (W3C DTCG format, produced by the `figma-design-system` skill) is the single source of truth for all visual values — never hard-code a color, size, or shadow.
 
 ## Process
 
