@@ -73,10 +73,10 @@ Reference the spacing tokens directly; do not embed pixel values.
 src/
   components/
     Button/
-      Button.tsx          # component implementation
-      Button.types.ts     # prop types / interfaces
-      Button.test.tsx     # co-located unit tests (TDD — tests first)
-      Button.stories.tsx  # Storybook story
+      Button.tsx                    # component implementation
+      Button.types.ts               # prop types / interfaces
+      Button.unit.test.tsx          # co-located unit tests (TDD — tests first)
+      Button.stories.tsx            # Storybook story
       Button.figma.tsx    # Code Connect mapping (see code-connect-impl)
       index.ts            # barrel export
   tokens/
@@ -91,7 +91,7 @@ Follow `principles-pragmatic-solid` interface segregation: the `index.ts` public
 
 For each component, follow the red/green/refactor cycle:
 
-1. **Red**: Write `Button.test.tsx` asserting the expected rendered output, accessible role, and prop variations. Run — confirm failure.
+1. **Red**: Write `Button.unit.test.tsx` asserting the expected rendered output, accessible role, and prop variations. Run — confirm failure. (Use `*.unit.test.tsx` for isolated component tests — see `principles-tdd` for the full unit/integration/e2e tier conventions.)
 2. **Green**: Implement `Button.tsx` with the minimum code to pass. Reference only token-based CSS vars or Tailwind classes derived from the token theme.
 3. **Refactor**: Extract shared sub-patterns (e.g., a `useTokenClass` utility) only when they appear in three or more components.
 

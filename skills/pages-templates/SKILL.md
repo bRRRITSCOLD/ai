@@ -113,15 +113,22 @@ For layout shifts (sidebar collapses to bottom nav on mobile), implement with CS
 
 ### 5. Co-locate route tests (TDD — `principles-tdd`)
 
-For each route and template, write tests before implementation:
+For each route and template, write tests before implementation. Follow the `principles-tdd` tier naming: `*.unit.test.tsx` for isolated component rendering, `*.integration.test.tsx` for routes wired with a real (or in-memory) router, and `*.e2e.test.ts` for Playwright flows against localhost.
+
+Route tests that render with a real router are integration-tier:
 
 ```tsx
-// src/routes/dashboard.test.tsx
+// src/routes/dashboard.integration.test.tsx
 import { render, screen } from '@testing-library/react';
 import { RouterProvider, createMemoryHistory, createRouter } from '@tanstack/react-router';
 import { routeTree } from '@/routeTree.gen';
 
 describe('DashboardPage', () => {
+  beforeAll(async () => { /* seed any required state */ });
+  beforeEach(async () => {});
+  afterEach(async () => {});
+  afterAll(async () => { /* clean up */ });
+
   it('renders the key metrics section', async () => {
     const router = createRouter({ routeTree, history: createMemoryHistory({ initialEntries: ['/dashboard'] }) });
     render(<RouterProvider router={router} />);
@@ -130,7 +137,7 @@ describe('DashboardPage', () => {
 });
 ```
 
-Mock backend service calls (`getDashboardData`) via dependency injection or module mocks. Routes must be independently testable without a live backend.
+Mock backend service calls (`getDashboardData`) via dependency injection or module mocks. Routes must be independently testable without a live backend. For full UI flows, write `*.e2e.test.ts` with Playwright against a running TanStack Start dev server.
 
 ### 6. Keep routes thin — enforce the boundary
 
