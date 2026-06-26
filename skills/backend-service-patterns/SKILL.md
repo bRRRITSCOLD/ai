@@ -1,6 +1,6 @@
 ---
 name: backend-service-patterns
-description: Applies hexagonal/ports-and-adapters architecture for backend services. Invoked when building a backend service, designing a Go/Node/Rust API, implementing a high-performance service, structuring a domain with ports and adapters, wiring dependency injection in a service, designing transport or persistence adapters, applying DDD in a backend context, validating input with zod, or parsing untrusted data at the adapter boundary. Ties to principles-tdd, principles-ddd, principles-pragmatic-solid, and principles-dry-kiss.
+description: Applies hexagonal/ports-and-adapters architecture for backend services. Invoked when building a backend service, designing a Go/Node/Rust API, implementing a high-performance service, structuring a domain with ports and adapters, wiring dependency injection in a service, designing transport or persistence adapters, applying DDD in a backend context, validating input with zod, or parsing untrusted data at the adapter boundary. Also invoked when choosing or wiring an HTTP transport adapter — Fastify (Node), Gin (Go), or Axum (Rust) — as the HTTP delivery layer in a ports-and-adapters service. Ties to principles-tdd, principles-ddd, principles-pragmatic-solid, and principles-dry-kiss.
 ---
 
 # Backend Service Patterns
@@ -25,6 +25,30 @@ Every domain behavior starts with a failing test. Use test doubles (stubs/fakes)
 
 ### Go
 
+**Gin as HTTP transport adapter.**
+Gin is the HTTP delivery layer — it is an adapter, not part of the domain. Initialize with `gin.New()` (not `gin.Default()`) and register only the middleware you need (`gin.Logger()`, `gin.Recovery()`). Group routes by bounded context with `router.Group("/orders")`. In each handler func, bind and validate immediately — `ctx.ShouldBindJSON(&cmd)` followed by `validate.Struct(&cmd)` (go-playground/validator with struct tags: `validate:"required,uuid4"`) — then call the domain service and map the result to a JSON response. Middleware (`router.Use(...)`) handles cross-cutting concerns: auth, request-id, tracing. Handlers must not contain domain logic; they are the HTTP face of the port.
+
+```go
+// internal/adapters/http/orders.go (transport adapter)
+func (h *OrderHandler) CreateOrder(ctx *gin.Context) {
+    var cmd CreateOrderCommand
+    if err := ctx.ShouldBindJSON(&cmd); err != nil {
+        ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+    if err := h.validate.Struct(&cmd); err != nil {
+        ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+    order, err := h.orderService.CreateOrder(ctx.Request.Context(), cmd) // domain call
+    if err != nil {
+        ctx.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+        return
+    }
+    ctx.JSON(http.StatusCreated, order)
+}
+```
+
 **Interfaces + table-driven tests.**
 Define small, behavior-focused interfaces (`Repository`, `Publisher`, `Cache`). Implement with concrete structs. Write table-driven tests for all domain logic — a `[]struct{ name, input, want }` slice makes coverage cheap and exhaustive.
 
@@ -40,6 +64,30 @@ Wrap errors with `fmt.Errorf("...: %w", err)` at every layer boundary so callers
 ---
 
 ### Node / TypeScript
+
+**Fastify as HTTP transport adapter.**
+Fastify is the HTTP delivery layer — it is an adapter, not part of the domain. Use Fastify's plugin system (`fastify.register`) to encapsulate routes by bounded context; each plugin owns its route prefix, schema declarations, and local decorators. Register `fastify-type-provider-zod` at the root to use zod schemas directly in route definitions — this provides automatic JSON Schema generation and a fully typed `request.body`/`request.query` without a manual `.parse()` call (ties to the zod validation pattern below). Keep handlers thin: receive the already-validated, typed input, call the domain service, map the result to a reply. Cross-cutting concerns (auth, logging, rate-limiting) go in Fastify hooks (`onRequest`, `preHandler`) or plugins registered at the root — never inside handlers.
+
+```ts
+// src/adapters/http/orders.plugin.ts (transport adapter)
+import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fastify-type-provider-zod';
+import { createOrderSchema } from '../../domain/schemas.js';
+
+export async function ordersPlugin(fastify: FastifyInstance) {
+  fastify.setValidatorCompiler(validatorCompiler);
+  fastify.setSerializerCompiler(serializerCompiler);
+
+  fastify.withTypeProvider<ZodTypeProvider>().post(
+    '/orders',
+    { schema: { body: createOrderSchema } },
+    async (request, reply) => {
+      // request.body is fully typed as z.infer<typeof createOrderSchema>
+      const order = await orderService.createOrder(request.body); // domain call
+      return reply.status(201).send(order);
+    },
+  );
+}
+```
 
 **DI containers or manual injection.**
 Prefer explicit constructor injection (manual DI) for services with few dependencies — it is transparent and easy to test. Use a DI container (e.g., `tsyringe`, `inversify`) only when the dependency graph is large enough that manual wiring becomes the bottleneck.
@@ -67,7 +115,6 @@ if (!result.success) return reply.status(400).send({ errors: result.error.flatte
 const order = await orderService.createOrder(result.data); // domain receives CreateOrderCommand
 ```
 
-For Fastify projects, `fastify-type-provider-zod` integrates zod schemas into Fastify's route schema system, providing automatic JSON Schema generation and a typed `request.body` without a manual `.parse()` call — issue #7 will wire this up.
 
 **Async discipline.**
 All I/O is `async/await`. Never mix raw Promises and async/await in the same call chain. Use `AbortSignal` / request-scoped cancellation for long-running operations. Handle errors at a single boundary (global middleware or a top-level `try/catch`) rather than swallowing them inside adapters.
@@ -75,6 +122,28 @@ All I/O is `async/await`. Never mix raw Promises and async/await in the same cal
 ---
 
 ### Rust
+
+**Axum as HTTP transport adapter.**
+Axum is the HTTP delivery layer — it is an adapter, not part of the domain. Build a `Router`, nest sub-routers by bounded context (`Router::new().nest("/orders", orders_router())`), and share domain services via `State<Arc<AppState>>`. Handlers are plain async functions with typed extractors: `Json<T>` deserializes the request body and returns 422 on parse failure; `State<Arc<AppState>>` injects the shared service graph. After extraction, validate immediately with `.validate()?` (the `validator` crate with `#[validate(...)]` field annotations). Handlers return `impl IntoResponse` — map domain `Result` variants to `StatusCode` + `Json`. Layer cross-cutting concerns with `tower` middleware (`TraceLayer`, `TimeoutLayer`) on the `Router`. No domain logic inside handlers.
+
+```rust
+// src/adapters/http/orders.rs (transport adapter)
+use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use validator::Validate;
+
+async fn create_order(
+    State(state): State<Arc<AppState>>,
+    Json(cmd): Json<CreateOrderCommand>,
+) -> impl IntoResponse {
+    if let Err(e) = cmd.validate() {
+        return (StatusCode::UNPROCESSABLE_ENTITY, Json(e.to_string())).into_response();
+    }
+    match state.order_service.create_order(cmd).await { // domain call
+        Ok(order) => (StatusCode::CREATED, Json(order)).into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
+}
+```
 
 **Traits as interfaces.**
 Define a trait per port (`Repository`, `EventBus`, `Clock`). Implement for concrete types (`PgRepository`, `KafkaEventBus`). For tests, implement the trait on a simple in-memory struct. Use `async_trait` (or manual `Pin<Box<dyn Future>>`) for async methods on `dyn`-dispatched traits, since `async fn` in traits is not yet object-safe for dynamic dispatch.
