@@ -368,7 +368,7 @@ const [tab, setTab] = useQueryState(
   parseAsStringEnum(['overview', 'activity', 'settings'] as const).withDefault('overview'),
 );
 
-// ?tags=react&tags=typescript  (multi-value)
+// ?tags=react,typescript  (multi-value; custom separator: parseAsArrayOf(parseAsString, '+'))
 const [tags, setTags] = useQueryState('tags', parseAsArrayOf(parseAsString).withDefault([]));
 ```
 
@@ -392,7 +392,7 @@ setFilters({ search: 'query', page: 1 }); // reset page when search changes
 | `parseAsString` | `?k=foo` | `string` | URL-decoded |
 | `parseAsInteger` | `?k=42` | `number` | Integers only; invalid → `null` |
 | `parseAsBoolean` | `?k=true` | `boolean` | Accepts `true` / `false` |
-| `parseAsArrayOf(p)` | `?k=a&k=b` | `T[]` | Wraps any parser |
+| `parseAsArrayOf(p)` | `?k=a,b` | `T[]` | Wraps any parser; separator configurable via `parseAsArrayOf(parser, separator)` |
 | `parseAsStringEnum([…])` | `?k=val` | `'a'\|'b'\|…` | Rejects values outside the set |
 
 Chain `.withDefault(value)` on any parser to eliminate `null` from the return type.
@@ -436,6 +436,7 @@ Wrap the component under test with `NuqsTestingAdapter` from `nuqs/adapters/test
 ```tsx
 // src/routes/products.unit.test.tsx
 import { render, screen, fireEvent } from '@testing-library/react';
+import { vi } from 'vitest';
 import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { ProductList } from './products';
 
@@ -446,14 +447,16 @@ describe('ProductList', () => {
   afterAll(async () => {});
 
   it('resets page to 1 when the search query changes', async () => {
+    const onUrlUpdate = vi.fn();
     render(
-      <NuqsTestingAdapter searchParams="?page=3">
+      <NuqsTestingAdapter searchParams="?page=3" onUrlUpdate={onUrlUpdate}>
         <ProductList />
       </NuqsTestingAdapter>,
     );
     fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'widget' } });
-    // page param should reset to 1 after the search input changes
-    expect(screen.queryByText(/page=3/i)).not.toBeInTheDocument();
+    // nuqs must have called onUrlUpdate, and the new query string must not carry page=3
+    expect(onUrlUpdate).toHaveBeenCalled();
+    expect(onUrlUpdate.mock.calls.at(-1)[0].queryString).toContain('page=1');
   });
 });
 ```
