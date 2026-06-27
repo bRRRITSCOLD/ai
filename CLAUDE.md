@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-This is a **Claude Code plugin** — the `ai` plugin from the `bRRRITSCOLD/ai` marketplace entry. It provides seven specialist agents and a shared library of engineering-principle skills for a full-stack feature-delivery team.
+This is a **Claude Code plugin** — the `ai` plugin from the `bRRRITSCOLD/ai` marketplace entry. It provides eight specialist agents and a shared library of engineering-principle skills for a full-stack feature-delivery team.
 
 ### Layout
 
@@ -16,7 +16,8 @@ This is a **Claude Code plugin** — the `ai` plugin from the `bRRRITSCOLD/ai` m
 agents/
   ux-designer.md       # authors design systems in Figma; extracts tokens
   frontend-engineer.md # Figma → React + TanStack Start component libraries + pages
-  backend-engineer.md  # Go/Node/Rust services on AWS/Cloudflare/Hetzner
+  backend-engineer.md  # Go/Node/Rust service & domain code, APIs, service-coupled infra
+  devops-engineer.md   # platform & DevEx: IaC, CI/CD, local dev loop, containers, observability
   systems-architect.md # system topology, service boundaries, ADRs, NFRs, tech selection
   data-architect.md    # store selection, schema design, vector/RAG data modeling, aggregate-to-schema mapping
   staff-engineer.md    # read-only reviewer against all four principle skills
@@ -34,7 +35,9 @@ skills/
   code-connect-impl/       # *.figma.tsx mapping files; npx figma connect publish
   pages-templates/         # TanStack Start layout templates and page routes
   backend-service-patterns/ # hexagonal arch, per-language patterns
-  cloud-infra/             # AWS/Cloudflare/Hetzner IaC and observability
+  cloud-infra/             # AWS/Cloudflare/Hetzner IaC and observability (backend + devops)
+  devex/                   # local dev loop: docker-compose deps, task runner, seeds, pre-commit
+  ci-cd/                   # CI/CD pipelines, build/test gates, release automation
   architecture/            # C4 diagrams, ADRs, NFRs, tech selection, evolutionary arch
   data-modeling/           # store selection, schema design, indexing, migrations, vector/RAG data design
   code-review/             # structured review checklist used by staff-engineer

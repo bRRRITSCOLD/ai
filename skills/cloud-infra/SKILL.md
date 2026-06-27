@@ -7,6 +7,8 @@ description: Guides infrastructure decisions and provisioning for backend servic
 
 Choose the platform that matches the workload, not the one with the most features. Default to IaC. Keep infra reproducible and cost-transparent.
 
+> **Shared skill.** Both `backend-engineer` (service-coupled infra — a service's own `Dockerfile`/IaC module) and `devops-engineer` (platform/shared infra, provisioning, observability) operate by this skill. For *which* infra each owns, see the backend-engineer ↔ devops-engineer boundary in those agents; this skill owns the technique, not the ownership split.
+
 > **Stack profile:** AWS / Cloudflare / Hetzner are the default targets. Before provisioning, read `.ai/stack-profile.md` if present (see the `stack-profile` skill). If it names a different target (GCP, Azure, Fly, self-host) or IaC tool, treat the patterns here as portable intent — research that provider's/tool's idioms first, then build to the same discipline (IaC-first, reproducible, cost-transparent). Absent or matching ⇒ use these defaults directly.
 
 ## Process
