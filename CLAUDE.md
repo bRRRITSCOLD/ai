@@ -40,6 +40,10 @@ skills/
   code-review/             # structured review checklist used by staff-engineer
   handoff/                 # session handoff — write before ending a work chunk
   project-management/      # orchestration playbook for the main session: decompose, track, dispatch
+  feature-delivery/        # end-to-end delivery phases: frame → plan → architecture → data → build → finish
+
+commands/
+  deliver.md               # /deliver <goal> — front door for feature-delivery skill
 
 hooks/
   hooks.json           # SessionStart hook → session-start.sh (surfaces handoff)
@@ -92,6 +96,21 @@ Skill body — instructions, checklists, decision trees, examples.
 ```
 
 Skills may have a `scripts/` subdirectory for shell helpers the skill invokes via `Bash`.
+
+## How to add a command
+
+Create `commands/<name>.md` with YAML frontmatter:
+
+```markdown
+---
+description: <one-line description shown in the /help list>
+argument-hint: <argument placeholder, e.g. <goal>>
+---
+
+Command body — invoke the relevant skill or agent, passing `$ARGUMENTS`.
+```
+
+The command name is the filename without `.md` (e.g. `commands/deliver.md` → `/deliver`). Keep the body short; let the skill hold the detail.
 
 ## Principle skills are the single source of truth
 
