@@ -40,6 +40,10 @@ skills/
   code-review/             # structured review checklist used by staff-engineer
   handoff/                 # session handoff — write before ending a work chunk
   project-management/      # orchestration playbook for the main session: decompose, track, dispatch
+  feature-delivery/        # end-to-end delivery phases: frame → plan → architecture → data → build → finish
+
+commands/
+  deliver.md               # /deliver <goal> — front door for feature-delivery skill
 
 hooks/
   hooks.json           # SessionStart hook → session-start.sh (surfaces handoff)
@@ -93,6 +97,21 @@ Skill body — instructions, checklists, decision trees, examples.
 
 Skills may have a `scripts/` subdirectory for shell helpers the skill invokes via `Bash`.
 
+## How to add a command
+
+Create `commands/<name>.md` with YAML frontmatter:
+
+```markdown
+---
+description: <one-line description shown in the /help list>
+argument-hint: <argument placeholder, e.g. <goal>>
+---
+
+Command body — invoke the relevant skill or agent, passing `$ARGUMENTS`.
+```
+
+The command name is the filename without `.md` (e.g. `commands/deliver.md` → `/deliver`). Keep the body short; let the skill hold the detail.
+
 ## Principle skills are the single source of truth
 
 The four principle skills (`principles-tdd`, `principles-ddd`, `principles-pragmatic-solid`, `principles-dry-kiss`) define all engineering rules for this team. When adding agents or skills:
@@ -133,6 +152,14 @@ Check that all skill SKILL.md files declare a `name:` in their frontmatter:
 ```bash
 for f in skills/*/SKILL.md; do grep -q '^name:' "$f" && echo "ok $f" || echo "MISSING name: $f"; done
 ```
+
+Check that all command files declare a `description:` in their frontmatter:
+
+```bash
+for f in commands/*.md; do grep -q '^description:' "$f" && echo "ok $f" || echo "MISSING description: $f"; done
+```
+
+The CI gate (`node scripts/ci/validate.mjs`) runs all of these — manifests parse, agent/skill `name:` matches path, and every command has a `description:`.
 
 Verify agent `name:` matches filename:
 

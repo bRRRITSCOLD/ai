@@ -68,6 +68,10 @@ The four principle skills define a pragmatic engineering stance shared across ev
 - **Pragmatic SOLID** — inject behind interfaces and keep Liskov substitution; cut ceremony (no interface-per-class without a real substitution need, no passthrough layers).
 - **DRY/KISS** — single source of truth for domain rules; rule of three before abstracting; KISS and YAGNI break ties when principles conflict.
 
+## End-to-end workflow
+
+Frame → Plan & track → Architecture → Data → Build loop → Finish. Run `/deliver <goal>` to start — it invokes the `feature-delivery` skill, which sequences the specialist agents across all phases and scales the process to the size of the goal.
+
 ## Session hygiene
 
 Long sessions accumulate stale context. Use the `handoff` skill before ending a work chunk to write a structured summary the next session can resume from instantly. The `SessionStart` hook surfaces any pending handoff at the start of each new session.
