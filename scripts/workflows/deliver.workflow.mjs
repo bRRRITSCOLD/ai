@@ -3,7 +3,9 @@
 // the staff-review gate passes, per git-workflow.
 //
 // Workflow tool primitives used:
-//   agent(prompt, { schema, label, phase })  — dispatch a subagent, return structured output
+//   agent(prompt, { schema, label, phase, model, effort, isolation })  — dispatch a subagent,
+//        return structured output. `model`/`effort` tier the dispatch; `isolation: 'worktree'`
+//        runs the agent in its own git worktree (required for parallel mutating agents).
 //   parallel(thunks)                          — run an array of () => Promise concurrently (barrier)
 //   log(message)                              — emit a progress line to the workflow log
 //   phase(name)                               — advance the named phase in the progress UI
@@ -29,6 +31,10 @@ const toNum = (v, fallback) => (Number.isFinite(Number(v)) ? Number(v) : fallbac
 const MAX_ITERATIONS   = toNum(args?.maxRounds, 20);       // hard cap on loop rounds
 const MAX_EMPTY_ROUNDS = toNum(args?.maxEmptyRounds, 3);   // stop after this many rounds with no merged PRs
 const BUDGET_THRESHOLD = toNum(args?.budgetThreshold, 5000); // stop if remaining tokens fall below this (0 = skip check)
+// Concurrency is OFF by default — a round runs serially. Set args.parallel:true
+// to fan out a round concurrently; safe only because the mutating implement/fix
+// agents run with isolation:'worktree'. Never enable parallel without isolation.
+const PARALLEL = args?.parallel === true;
 
 // --- Model & effort tiering (per dispatched stage) ---
 // Tier by cognitive load, not by agent identity. Mechanical steps run cheap;
@@ -60,7 +66,11 @@ const scoutResult = await agent(
   `Run the following shell command and return the structured result:
   gh issue list --state open --json number,title,body,labels,assignees
 
-  Parse each issue's body for lines matching "Depends on: #N" or "blockedBy: #N".
+  EXCLUDE any issue already labeled "in-progress" — it is claimed by another
+  agent or a concurrent run, and must not be dispatched again (this prevents two
+  agents working the same issue).
+
+  Parse each remaining issue's body for lines matching "Depends on: #N" or "blockedBy: #N".
   Return a JSON object with:
   - openIssues: array of { number, title, agent (from labels or assignees), blockedBy: number[] }
   - totalOpen: number
@@ -132,6 +142,18 @@ if (scoutResult.error) {
       },
     );
 
+  // Release the in-progress claim so a flagged-open issue can be retried later
+  // (otherwise scout would skip it forever as "claimed").
+  const unclaim = (issueNumber) =>
+    agent(
+      `Run this shell command and report the result:
+      gh issue edit ${issueNumber} --remove-label in-progress
+
+      Return { unclaimed: boolean }.`,
+      { label: `unclaim-${issueNumber}`, phase: 'Build', ...MODEL.merge,
+        schema: { type: 'object', properties: { unclaimed: { type: 'boolean' } }, required: [] } },
+    );
+
   while (
     openIssues.length > 0 &&
     iterations < MAX_ITERATIONS &&
@@ -167,7 +189,12 @@ if (scoutResult.error) {
     const roundTasks = ready.map((issue, idx) => {
       const specialist = SPECIALIST_MAP[issue.agent] ?? issue.agent ?? 'backend-engineer';
 
-      // implementStage: dispatch the assigned specialist agent
+      // implementStage: dispatch the assigned specialist agent.
+      // isolation:'worktree' gives each parallel implementer its OWN git
+      // worktree — without this, concurrent implementers mutate one shared
+      // working tree and race/clobber each other (and a sibling's --force
+      // worktree removal can wipe uncommitted work). Isolation is mandatory
+      // whenever implement stages run in parallel.
       const implementStage = async (iss) => {
         log(`[#${iss.number}] Dispatching ${specialist}: ${iss.title}`);
         return agent(
@@ -175,9 +202,18 @@ if (scoutResult.error) {
 
           Implement GitHub issue #${iss.number}: "${iss.title}"
 
+          0. CLAIM the issue — check BEFORE you set (read-then-add), so you can
+             detect a prior claim. This is a best-effort advisory claim, not a
+             hard lock; the real cross-run guard is "one orchestration per repo".
+             labels=$(gh issue view ${iss.number} --json labels -q '.labels[].name')
+             echo "$labels" | grep -qx in-progress && { echo "already claimed"; STOP — return prNumber 0; }
+             gh label create in-progress 2>/dev/null || true
+             gh issue edit ${iss.number} --add-label in-progress
           Follow the git-workflow skill:
           1. Cut a branch named issue-${iss.number}-<slug> from main.
-          2. Implement the change. Apply the relevant principle skills.
+          2. Implement the change. COMMIT as soon as you have a working scaffold —
+             never hold a large uncommitted tree (it can be lost to a reset).
+             Apply the relevant principle skills.
           3. Open a PR with title matching Conventional Commits format.
              PR body must include: Closes #${iss.number}
           4. Return the PR number and branch name.
@@ -186,6 +222,7 @@ if (scoutResult.error) {
           {
             label: `implement-${iss.number}-round${iterations}-idx${idx}`,
             phase: 'Build',
+            isolation: 'worktree',
             ...MODEL.implement,
             schema: {
               type: 'object',
@@ -202,6 +239,12 @@ if (scoutResult.error) {
 
       // reviewStage: staff-engineer reviews and optionally merges
       const reviewStage = async (implResult) => {
+        // prNumber 0 ⇒ the implementer found the issue already claimed and stopped.
+        // Skip review/merge; another agent owns it.
+        if (!implResult || !implResult.prNumber) {
+          log(`[#${issue.number}] Skipped — already claimed by another agent (no PR opened).`);
+          return { approved: false, skipped: true };
+        }
         log(`[#${issue.number}] Staff-engineer reviewing PR #${implResult.prNumber}`);
         const review = await agent(
           `You are the staff-engineer agent (read-only reviewer). Do NOT merge or
@@ -230,6 +273,11 @@ if (scoutResult.error) {
 
         if (review.approved) {
           await mergePr(implResult.prNumber);
+          // Defensively release the claim: the PR's `Closes #n` should auto-close
+          // the issue (then scout's --state open hides it), but if auto-close
+          // doesn't fire, removing the label prevents the issue being excluded
+          // forever as "in-progress".
+          await unclaim(issue.number);
           log(`[#${issue.number}] PR #${implResult.prNumber} merged.`);
           closedThisRun.add(issue.number);
           // Remove from openIssues now that it's merged
@@ -247,11 +295,13 @@ if (scoutResult.error) {
             Findings from staff-engineer review:
             ${review.findings}
 
-            Apply the fixes and push to the same branch. Do not open a new PR.
+            Check out branch ${implResult.branch} in your own worktree, apply the
+            fixes, COMMIT, and push to the same branch. Do not open a new PR.
             Return the same prNumber and branch.`,
             {
               label: `fix-${issue.number}-round${iterations}-idx${idx}`,
               phase: 'Build',
+              isolation: 'worktree',
               ...MODEL.fix,
               schema: {
                 type: 'object',
@@ -290,11 +340,13 @@ if (scoutResult.error) {
 
           if (reReview.approved) {
             await mergePr(fixResult.prNumber);
+            await unclaim(issue.number);  // defensive: see merge-path note above
             log(`[#${issue.number}] PR #${fixResult.prNumber} merged after fix pass.`);
             closedThisRun.add(issue.number);
             openIssues = openIssues.filter((i) => i.number !== issue.number);
           } else {
-            log(`[#${issue.number}] Still failing after fix pass — flagged open. Findings: ${reReview.findings}`);
+            await unclaim(issue.number);
+            log(`[#${issue.number}] Still failing after fix pass — flagged open (claim released for retry). Findings: ${reReview.findings}`);
           }
         }
 
@@ -302,15 +354,38 @@ if (scoutResult.error) {
       };
 
       // Thunk: implement then review/merge for this one issue.
+      // If the implementer throws AFTER claiming the issue, release the claim so
+      // the issue isn't stranded as permanently "in-progress" (and excluded by
+      // scout) on the next run.
       return async () => {
-        const implResult = await implementStage(issue);
+        let implResult;
+        try {
+          implResult = await implementStage(issue);
+        } catch (err) {
+          await unclaim(issue.number);
+          log(`[#${issue.number}] Implementer errored — claim released. ${err?.message ?? err}`);
+          throw err;
+        }
         return reviewStage(implResult);
       };
     });
 
-    // Fan out ready issues; parallel() takes an array of thunks and is a
-    // barrier — it awaits every issue's implement→review chain this round.
-    const roundResults = await parallel(roundTasks);
+    // SAFETY DEFAULT: run the round SERIALLY (one issue at a time). Parallelism
+    // without per-agent isolation loses work (shared working tree races; a
+    // worktree teardown wipes a sibling's uncommitted changes). Opt into
+    // concurrency only with isolation: `args: { parallel: true }` — the
+    // implement/fix agents already carry `isolation: 'worktree'`.
+    let roundResults;
+    if (PARALLEL) {
+      // Each thunk's mutating agents run in their own worktree (isolation set above).
+      roundResults = await parallel(roundTasks);
+    } else {
+      roundResults = [];
+      for (const task of roundTasks) {
+        // eslint-disable-next-line no-await-in-loop
+        roundResults.push(await task().catch(() => null));
+      }
+    }
 
     const mergedThisRound = roundResults.filter(
       (_, i) => closedThisRun.has(ready[i].number),

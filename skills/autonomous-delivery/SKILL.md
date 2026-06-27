@@ -38,9 +38,19 @@ until (open issues == 0) or (iterations >= CAP) or (budget exhausted):
 done when: 0 open issues AND CI/validate green AND tests pass
 ```
 
-Parallel-safe issues (no shared file overlap, independent scope) may be dispatched concurrently. Serial issues (dependency edges, shared files) must run sequentially.
+Parallel-safe issues (no shared file overlap, independent scope) may be dispatched concurrently — but **each in its own worktree** (two branches can't share one working tree even with zero file overlap). Serial issues (dependency edges, shared files) must run sequentially. The reference script is **serial by default**; concurrency is opt-in via `args.parallel: true` and only safe because the mutating agents carry `isolation: 'worktree'`.
 
 The reference script can only see **declared `blockedBy` edges** — it cannot infer shared-file overlap from issue metadata. So any two issues that touch the same files MUST carry a `blockedBy` edge between them; the absence of an edge is the operator's assertion that the issues are parallel-safe. Encode file contention as a dependency when decomposing (in `feature-delivery` / `project-management`).
+
+### Concurrency safety (learned the hard way)
+
+Parallelism without isolation **loses work**. Two agents in one working tree race and clobber; a `--force` worktree teardown wipes a sibling's uncommitted changes; in-memory dedup doesn't survive a second session. Non-negotiable rules (see `git-workflow` → "Concurrency safety"):
+
+- **Per-agent worktree isolation is mandatory for any parallel mutating agent.** The reference script dispatches implement/fix with `isolation: 'worktree'`. If you can't isolate, **dispatch serially** — never let two agents share a working tree.
+- **One agent per issue, ever.** Claim the issue (`in-progress` label) on dispatch; the scout excludes claimed issues; a flagged-open issue releases its claim for retry. Never two agents on the same issue.
+- **Commit-early.** Implementers commit as soon as a scaffold works — uncommitted work is the only work that can vanish.
+- **One orchestration at a time per repo.** Don't run two `/orchestrate`/`/deliver` sessions against the same repo concurrently — they double-dispatch and collide.
+- **Never `--force`-remove or reset a worktree with uncommitted/unpushed work.** Verify `git status --porcelain` and `git log @{u}..` are empty first; only the creator removes its worktree, after merge/push.
 
 ## Guards
 

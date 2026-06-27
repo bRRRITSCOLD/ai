@@ -19,6 +19,22 @@ git checkout main && git pull
 
 **Isolation**: use a git worktree so the main checkout stays clean. Defer to `superpowers:using-git-worktrees` for mechanics — do not restate them here.
 
+### Concurrency safety (non-negotiable when more than one agent is active)
+
+Parallel agents that share one working tree race and clobber each other, and a careless worktree teardown can wipe a sibling's uncommitted work. These rules prevent that:
+
+- **One agent per branch/worktree per issue — ever.** Never let two agents work the same issue or the same branch concurrently. Claim the issue (e.g. read labels, then `gh issue edit <n> --add-label in-progress` if not already claimed) before starting; another agent that sees the claim stops. The label is a **best-effort advisory claim**, not an atomic lock — the real cross-run guard is "one orchestration per repo" below.
+- **Each parallel agent gets its OWN worktree.** If work can't be isolated per agent, run it **serially** instead. (In the Workflow tool, dispatch mutating agents with `isolation: 'worktree'`.)
+- **Commit as soon as you have a working scaffold.** Never hold a large uncommitted tree across long operations — a reset or a sibling's teardown can destroy uncommitted work permanently. Commit early, commit often; the branch is your safety net.
+- **Never `--force`-remove or reset a worktree that has uncommitted or unpushed work.** Before removing a worktree, verify it's safe:
+  ```bash
+  git -C <worktree> status --porcelain      # must be empty (nothing uncommitted)
+  git -C <worktree> log --oneline @{u}..    # must be empty (nothing unpushed)
+  ```
+  Only then `git worktree remove <path>`. Never `--force` past a dirty/ahead worktree to "clean up".
+- **Only the creator removes its worktree**, and only after its PR is merged or its branch is pushed. The dispatcher (main session) owns worktree lifecycle; specialist agents never remove a worktree they didn't create.
+- **Run one orchestration at a time.** Do not launch two `/orchestrate` (or `/deliver`) sessions against the same repo — in-memory dedup is per-run; concurrent runs double-dispatch and collide.
+
 ## PR sizing — the key rule
 
 **One PR = one cohesive, small, revertible change.**

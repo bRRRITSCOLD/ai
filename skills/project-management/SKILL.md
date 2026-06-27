@@ -69,7 +69,8 @@ Do not start a blocked task early. Do not serialize tasks that are actually inde
 
 For each ready task (status = todo, all blockers closed):
 
-1. **Implement** — invoke the assigned specialist agent via `superpowers:subagent-driven-development`. Brief the agent with: issue number, goal, done criteria, relevant file paths, and any constraints from prior tasks.
+0. **Claim it** — before dispatching, mark the issue owned (`gh issue edit <n> --add-label in-progress`) and confirm it isn't already claimed/in-flight. **Never dispatch two agents on the same issue, or on file-overlapping issues, without per-agent worktree isolation** — sharing a working tree loses work (see `git-workflow` → "Concurrency safety"). If you can't isolate, run those tasks serially.
+1. **Implement** — invoke the assigned specialist agent via `superpowers:subagent-driven-development`. Brief the agent with: issue number, goal, done criteria, relevant file paths, and any constraints from prior tasks. Tell it to **commit as soon as a scaffold works** — don't hold a large uncommitted tree.
 2. **Review** — invoke `staff-engineer` on the resulting diff.
 3. **Merge** — follow the `git-workflow` skill: small cohesive PRs, default per-issue, group trivial siblings, split big ones. Squash-merge off main.
 4. **Update tracking** — mark the issue closed; update the local task list; check whether closing this issue unblocks the next wave.
