@@ -40,13 +40,15 @@ done when: 0 open issues AND CI/validate green AND tests pass
 
 Parallel-safe issues (no shared file overlap, independent scope) may be dispatched concurrently. Serial issues (dependency edges, shared files) must run sequentially.
 
+The reference script can only see **declared `blockedBy` edges** — it cannot infer shared-file overlap from issue metadata. So any two issues that touch the same files MUST carry a `blockedBy` edge between them; the absence of an edge is the operator's assertion that the issues are parallel-safe. Encode file contention as a dependency when decomposing (in `feature-delivery` / `project-management`).
+
 ## Guards
 
 | Guard | Rule |
 |---|---|
-| **TERMINATION** | Loop exits only when: open issues = 0 AND `node scripts/ci/validate.mjs` passes AND tests pass. Not before. |
-| **VERIFICATION** | Every PR passes through the staff-engineer review gate before merge. Never merge unreviewed. If review fails, one fix pass then re-review; if it still fails, flag the issue open and continue to the next. |
-| **RUNAWAY** | Hard max-iteration CAP (default 20 rounds). Also stop after K consecutive rounds (default 3) with no merged PRs — loop-until-dry. Also stop when `budget.remaining() < THRESHOLD` if running via the Workflow tool. |
+| **TERMINATION** | The dispatch loop drains ready issues until open issues = 0 (or a RUNAWAY/budget guard trips). It then runs a **Verify** step — `node scripts/ci/validate.mjs` plus the project's test suites. A red Verify is reported as a non-success outcome (flag + stop), never silently swallowed. The goal counts as *reached* only when open issues = 0 AND validate is green AND tests pass. |
+| **VERIFICATION** | Every PR passes through the staff-engineer review gate before merge. The reviewer is read-only and returns findings only — the **merge runs at the main-session/workflow level**, only after the gate approves. Never merge unreviewed. On non-approval: exactly one fix pass, then one re-review; if it still fails, flag the issue open and continue to the next. |
+| **RUNAWAY** | Hard max-iteration CAP (default 20 rounds). Also stop when `budget.remaining() < THRESHOLD` if running via the Workflow tool. (A consecutive-empty-rounds counter exists as a backstop, but because each issue is attempted at most once per run, the loop normally terminates first by exhausting *ready* issues — the CAP and budget are the load-bearing guards.) |
 | **DURABLE STATE** | GitHub issues + a progress ledger file (`.superpowers/delivery-progress.md`) are the resume map. They survive crash and context compaction. On resume, trust closed issues and `git log` over in-memory state — never reconstruct history from memory. |
 | **CONTEXT-ROT** | Run the `handoff` skill before ending any session with open issues. Prefer a fresh Claude Code session between phases or large work chunks — long sessions accumulate stale reasoning. |
 
@@ -64,7 +66,7 @@ This gives deterministic fan-out with a built-in budget guard and explicit Scout
 
 ### (B) `/loop` or ScheduleWakeup — for long unattended or polling runs
 
-Use the `loop` skill or `ScheduleWakeup` to re-check ready issues on each tick (or self-paced). Good for overnight runs or when the goal spans many sessions. Pair with the DURABLE STATE guard — write the progress ledger each tick so any session can resume.
+Use Claude Code's built-in `/loop` command or `ScheduleWakeup` (host features, not skills in this plugin) to re-check ready issues on each tick (or self-paced). Good for overnight runs or when the goal spans many sessions. Pair with the DURABLE STATE guard — write the progress ledger each tick so any session can resume.
 
 ## Honesty constraint
 

@@ -4,12 +4,11 @@
 //
 // Workflow tool primitives used:
 //   agent(prompt, { schema, label, phase })  — dispatch a subagent, return structured output
-//   pipeline(item, ...stages)                — chain stages over a single item
-//   parallel(...tasks)                       — fan-out concurrent tasks
-//   log(message)                             — emit a progress line to the workflow log
-//   phase(name)                              — advance the named phase in the progress UI
-//   budget.total                             — total token budget for this run (0 = unlimited)
-//   budget.remaining()                       — tokens remaining
+//   parallel(thunks)                          — run an array of () => Promise concurrently (barrier)
+//   log(message)                              — emit a progress line to the workflow log
+//   phase(name)                               — advance the named phase in the progress UI
+//   budget.total                              — total token budget (null/0 = unlimited)
+//   budget.remaining()                        — tokens remaining
 
 export const meta = {
   name: 'deliver',
@@ -89,6 +88,29 @@ if (scoutResult.error) {
   let emptyRounds = 0;
   let openIssues = scoutResult.openIssues;
 
+  // Merge happens at the workflow (main-session) level — never inside the
+  // read-only staff-engineer review agent. This is a separate, write-capable
+  // worker dispatched only after the review gate has approved.
+  const mergePr = (prNumber) =>
+    agent(
+      `Run this shell command and report the result:
+      gh pr merge ${prNumber} --squash --delete-branch
+
+      Return { merged: boolean, output: string }.`,
+      {
+        label: `merge-pr-${prNumber}`,
+        phase: 'Build',
+        schema: {
+          type: 'object',
+          properties: {
+            merged: { type: 'boolean' },
+            output: { type: 'string' },
+          },
+          required: ['merged'],
+        },
+      },
+    );
+
   while (
     openIssues.length > 0 &&
     iterations < MAX_ITERATIONS &&
@@ -118,8 +140,9 @@ if (scoutResult.error) {
       seen.add(issue.number);
     }
 
-    // Build stage: implement + review + merge for each ready issue
-    // Issues without shared-file overlap are dispatched in parallel via pipeline + parallel
+    // Build stage: implement + review + merge for each ready issue.
+    // Each ready issue becomes one thunk; parallel() runs the independent
+    // issues concurrently. Within a thunk, implement → review runs serially.
     const roundTasks = ready.map((issue, idx) => {
       const specialist = SPECIALIST_MAP[issue.agent] ?? issue.agent ?? 'backend-engineer';
 
@@ -159,15 +182,15 @@ if (scoutResult.error) {
       const reviewStage = async (implResult) => {
         log(`[#${issue.number}] Staff-engineer reviewing PR #${implResult.prNumber}`);
         const review = await agent(
-          `You are the staff-engineer agent (read-only reviewer).
+          `You are the staff-engineer agent (read-only reviewer). Do NOT merge or
+          edit anything — return findings only.
 
           Review PR #${implResult.prNumber} (branch: ${implResult.branch}) for issue #${issue.number}.
           Apply: code-review skill, principles-tdd, principles-ddd, principles-pragmatic-solid, principles-dry-kiss.
           Check: correctness, security, performance, principle compliance.
 
-          If approved: run \`gh pr merge ${implResult.prNumber} --squash --delete-branch\` and return approved=true.
-          If changes needed: return approved=false with specific findings.
-          If still failing after one fix pass: return approved=false with mustFlag=true.`,
+          If it meets the bar: return approved=true.
+          If changes are needed: return approved=false with specific, actionable findings.`,
           {
             label: `review-${issue.number}-round${iterations}-idx${idx}`,
             phase: 'Build',
@@ -175,7 +198,6 @@ if (scoutResult.error) {
               type: 'object',
               properties: {
                 approved:  { type: 'boolean' },
-                mustFlag:  { type: 'boolean' },
                 findings:  { type: 'string' },
               },
               required: ['approved'],
@@ -184,13 +206,14 @@ if (scoutResult.error) {
         );
 
         if (review.approved) {
+          await mergePr(implResult.prNumber);
           log(`[#${issue.number}] PR #${implResult.prNumber} merged.`);
           closedThisRun.add(issue.number);
           // Remove from openIssues now that it's merged
           openIssues = openIssues.filter((i) => i.number !== issue.number);
-        } else if (review.mustFlag) {
-          log(`[#${issue.number}] Review failed after fix pass — flagged open. Findings: ${review.findings}`);
         } else {
+          // VERIFICATION guard: any non-approval gets exactly one fix pass,
+          // then one re-review, before the issue is flagged open.
           log(`[#${issue.number}] Review requested changes. Running one fix pass.`);
           // One fix pass: re-dispatch specialist with review findings, then re-review
           const fixResult = await agent(
@@ -218,13 +241,14 @@ if (scoutResult.error) {
           );
 
           const reReview = await agent(
-            `You are the staff-engineer agent (read-only reviewer).
+            `You are the staff-engineer agent (read-only reviewer). Do NOT merge or
+            edit anything — return findings only.
 
             Re-review PR #${fixResult.prNumber} (branch: ${fixResult.branch}) for issue #${issue.number} after a fix pass.
             Apply the same code-review skill and principle skills as before.
 
-            If approved: run \`gh pr merge ${fixResult.prNumber} --squash --delete-branch\` and return approved=true.
-            If still failing: return approved=false with mustFlag=true and specific findings.`,
+            If it now meets the bar: return approved=true.
+            If still failing: return approved=false with specific findings (this is the last pass — the issue will be flagged open).`,
             {
               label: `rereview-${issue.number}-round${iterations}-idx${idx}`,
               phase: 'Build',
@@ -232,7 +256,6 @@ if (scoutResult.error) {
                 type: 'object',
                 properties: {
                   approved: { type: 'boolean' },
-                  mustFlag: { type: 'boolean' },
                   findings: { type: 'string' },
                 },
                 required: ['approved'],
@@ -241,6 +264,7 @@ if (scoutResult.error) {
           );
 
           if (reReview.approved) {
+            await mergePr(fixResult.prNumber);
             log(`[#${issue.number}] PR #${fixResult.prNumber} merged after fix pass.`);
             closedThisRun.add(issue.number);
             openIssues = openIssues.filter((i) => i.number !== issue.number);
@@ -252,11 +276,16 @@ if (scoutResult.error) {
         return review;
       };
 
-      return pipeline(issue, implementStage, reviewStage);
+      // Thunk: implement then review/merge for this one issue.
+      return async () => {
+        const implResult = await implementStage(issue);
+        return reviewStage(implResult);
+      };
     });
 
-    // Fan out ready issues; parallel is safe when issues are independent
-    const roundResults = await parallel(...roundTasks);
+    // Fan out ready issues; parallel() takes an array of thunks and is a
+    // barrier — it awaits every issue's implement→review chain this round.
+    const roundResults = await parallel(roundTasks);
 
     const mergedThisRound = roundResults.filter(
       (_, i) => closedThisRun.has(ready[i].number),
@@ -285,7 +314,7 @@ if (scoutResult.error) {
   // --- Phase 3: Verify — confirm CI is green ---
   phase('Verify');
 
-  await agent(
+  const verify = await agent(
     `Run the local CI validation gate and report results:
     node scripts/ci/validate.mjs
 
@@ -308,4 +337,17 @@ if (scoutResult.error) {
       },
     },
   );
+
+  // TERMINATION guard: a red Verify is a non-success outcome, not swallowed.
+  const remaining = openIssues.length;
+  if (verify?.passed && remaining === 0) {
+    log('DONE: 0 open issues and Verify is green.');
+  } else {
+    const reasons = [];
+    if (remaining > 0) reasons.push(`${remaining} issue(s) still open`);
+    if (!verify?.passed) {
+      reasons.push(`Verify failed${verify?.failedChecks?.length ? `: ${verify.failedChecks.join(', ')}` : ''}`);
+    }
+    log(`NOT DONE — ${reasons.join('; ')}. Operator action required.`);
+  }
 }
