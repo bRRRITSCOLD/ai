@@ -11,7 +11,7 @@ A Claude Code plugin that gives you a complete feature-delivery team:
 - **backend-engineer** — designs and implements high-performance services in Go, Node/TypeScript, and Rust; deploys on AWS, Cloudflare, and Hetzner; applies hexagonal/ports-and-adapters architecture throughout.
 - **systems-architect** — designs system topology, defines service and bounded-context boundaries, authors ADRs, evaluates non-functional requirements, and selects technology with explicit tradeoffs.
 - **data-architect** — chooses stores per workload with explicit tradeoffs, designs schemas and indexes, models data for vector/semantic search and RAG pipelines, and aligns persistence schemas with DDD aggregate boundaries.
-- **staff-engineer** — reviews code from all five engineer agents against the team's principle skills plus correctness, security, and performance; does not write code.
+- **staff-engineer** — reviews code from the five implementation agents (`ux-designer`, `frontend-engineer`, `backend-engineer`, `systems-architect`, `data-architect`) against the team's principle skills plus correctness, security, and performance; does not write code.
 - **project-manager** — turns a goal or epic into a sequenced plan of GitHub issues with specialist-agent assignments and dependency tracking; does not dispatch agents (the main session does that).
 
 Shared principle skills — TDD, DDD, pragmatic SOLID, DRY/KISS — are the single source of truth for how every agent reasons and works.
