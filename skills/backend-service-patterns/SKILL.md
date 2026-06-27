@@ -7,6 +7,8 @@ description: Applies hexagonal/ports-and-adapters architecture for backend servi
 
 Hexagonal architecture (ports and adapters): domain core behind interfaces, adapters for transport and persistence. Inject dependencies at the boundary. Measure before optimizing.
 
+> **Stack profile:** the Go/Node/Rust + Gin/Fastify/Axum examples below are defaults. Before building, read `.ai/stack-profile.md` if present (see the `stack-profile` skill). If it names a different language or HTTP framework (e.g. Python/FastAPI), treat the examples as patterns to translate — research that stack's idioms first, then build to the same discipline. **Ports-and-adapters and DI are invariant** — they apply in every language; only the concrete framework changes.
+
 ## Process
 
 **Domain core behind interfaces (ports).**

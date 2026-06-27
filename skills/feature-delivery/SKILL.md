@@ -55,6 +55,8 @@ Skip for features with no persistence layer, or where the existing schema is unc
 
 ### Phase 4 — Build loop
 
+**Before dispatching any specialist, seed the stack profile.** If the project's stack differs from the plugin defaults (TanStack Start, Go/Node/Rust, AWS/CF/Hetzner, shadcn/Base UI), run `/init-stack` (or write `.ai/stack-profile.md` directly per the `stack-profile` skill) so every dispatched specialist reads the same stack. A default-stack project can skip this. Discipline (TDD/DDD/pragmatic-SOLID/DRY-KISS, ports-and-adapters, test tiers, naming) is invariant either way.
+
 Execute the `project-management` dispatch loop — follow the `git-workflow` skill for PR sizing (small cohesive PRs, default per-issue, group trivial siblings, split big ones; squash-merge off main):
 
 For each ready issue (wave order, blockers closed):

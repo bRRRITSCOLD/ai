@@ -7,6 +7,8 @@ description: Builds a reusable, accessible, typed React component library (frame
 
 Build a reusable, accessible, type-safe React component library that is a faithful code mirror of the Figma design system. The library is framework-agnostic and designed to compose cleanly into TanStack Start routes and layout templates — no framework-specific imports, no RSC assumptions. `tokens.json` (W3C DTCG format, produced by the `figma-design-system` skill) is the single source of truth for all visual values — never hard-code a color, size, or shadow.
 
+> **Stack profile:** the shadcn/ui + Base UI + Tailwind/cva defaults below are the team default. Before building, read `.ai/stack-profile.md` if present (see the `stack-profile` skill). If it names different component primitives or a different framework, treat the examples here as patterns to translate — research the chosen library's idioms first, then build to the same discipline (token-as-source-of-truth, a11y, TDD). Absent or matching ⇒ use these defaults directly.
+
 ## Primitive layer — shadcn/ui + Base UI
 
 Components follow the **shadcn/ui pattern**: the component source lives in *this* repo (`src/components/**`), owned and editable — not pulled from a black-box dependency. Behavior and accessibility come from **Base UI** (`@base-ui-components/react`) headless primitives; Tailwind + `cva` + `cn()` are the styling layer on top. This is the team default — chosen so focus management, ARIA wiring, keyboard interaction, and dismiss/positioning logic come from a maintained accessible primitive instead of being hand-rolled.

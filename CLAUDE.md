@@ -43,10 +43,12 @@ skills/
   feature-delivery/        # end-to-end delivery phases: frame → plan → architecture → data → build → finish
   git-workflow/            # branching, Conventional Commits, PR sizing, squash-merge, release automation
   autonomous-delivery/     # self-sustaining dispatch-review-merge loop with termination + runaway guards
+  stack-profile/           # optional per-project stack override (.ai/stack-profile.md) for the impl skills
 
 commands/
   deliver.md               # /deliver <goal> — front door for feature-delivery skill
   orchestrate.md           # /orchestrate <goal or #issues> — drive issues to done via autonomous-delivery loop
+  init-stack.md            # /init-stack — interview + write .ai/stack-profile.md
 
 scripts/
   workflows/
@@ -126,6 +128,10 @@ The four principle skills (`principles-tdd`, `principles-ddd`, `principles-pragm
 - **Reference** principle skills by name in `## Operates by` sections.
 - **Do not restate** their rules in agent or skill bodies — they own the canonical text.
 - **Do not create** a second TDD, DDD, SOLID, or DRY/KISS document anywhere in the repo.
+
+## Stack: opinionated default, overridable
+
+The plugin is opinionated by default — the **implementation skills** (`react-component-library`, `backend-service-patterns`, `pages-templates`, `cloud-infra`, `data-modeling`) ship concrete code for a specific stack (TanStack Start, Go/Node/Rust, AWS/CF/Hetzner, shadcn/Base UI). That concreteness is the value. A project on a different stack declares `.ai/stack-profile.md` (write it with `/init-stack`); the impl skills read it and adapt, researching the chosen tech first. The `stack-profile` skill is the single source of truth for the mechanism — reference it, don't restate it. **Discipline skills** (the four principle skills + architecture, plus the test tiers and naming conventions) are stack-invariant and never read the profile. (`data-modeling` is an implementation skill — it reads the profile for the project's declared stores — but its *modeling discipline* stays invariant.)
 
 ## Pragmatic stance
 
