@@ -21,7 +21,8 @@ The team of specialist agents this skill coordinates:
 |---|---|
 | `ux-designer` | Design systems, Figma authoring, token extraction |
 | `frontend-engineer` | React + TanStack Start components, pages, Code Connect |
-| `backend-engineer` | Go / Node / Rust services, infra, APIs |
+| `backend-engineer` | Go / Node / Rust service & domain code, APIs, service-coupled infra |
+| `devops-engineer` | Platform & DevEx — IaC provisioning, CI/CD, local dev loop, containers, observability |
 | `systems-architect` | System topology, ADRs, NFRs, tech selection |
 | `data-architect` | Store selection, schema design, vector/RAG data modeling |
 | `staff-engineer` | Read-only reviewer — runs after every implementation task |

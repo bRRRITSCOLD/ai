@@ -8,10 +8,11 @@ A Claude Code plugin that gives you a complete feature-delivery team:
 
 - **ux-designer** — authors design systems and UX work directly in Figma using the official Figma MCP write tools; extracts tokens for code consumers; wires Code Connect so Dev Mode shows real component examples.
 - **frontend-engineer** — takes Figma designs all the way to production-ready React + TanStack Start code; builds typed, accessible component libraries from `tokens.json`; composes pages and templates.
-- **backend-engineer** — designs and implements high-performance services in Go, Node/TypeScript, and Rust; deploys on AWS, Cloudflare, and Hetzner; applies hexagonal/ports-and-adapters architecture throughout.
+- **backend-engineer** — designs and implements high-performance services in Go, Node/TypeScript, and Rust; applies hexagonal/ports-and-adapters architecture; authors the infra coupled to its own service.
+- **devops-engineer** — owns the platform and developer experience: IaC provisioning (AWS, Cloudflare, Hetzner), CI/CD pipelines and release automation, the local dev loop (docker-compose, task runner, seeds), containers, and observability.
 - **systems-architect** — designs system topology, defines service and bounded-context boundaries, authors ADRs, evaluates non-functional requirements, and selects technology with explicit tradeoffs.
 - **data-architect** — chooses stores per workload with explicit tradeoffs, designs schemas and indexes, models data for vector/semantic search and RAG pipelines, and aligns persistence schemas with DDD aggregate boundaries.
-- **staff-engineer** — reviews code from the five implementation agents (`ux-designer`, `frontend-engineer`, `backend-engineer`, `systems-architect`, `data-architect`) against the team's principle skills plus correctness, security, and performance; does not write code.
+- **staff-engineer** — reviews code from the six implementation agents (`ux-designer`, `frontend-engineer`, `backend-engineer`, `devops-engineer`, `systems-architect`, `data-architect`) against the team's principle skills plus correctness, security, and performance; does not write code.
 - **project-manager** — turns a goal or epic into a sequenced plan of GitHub issues with specialist-agent assignments and dependency tracking; does not dispatch agents (the main session does that).
 
 Shared principle skills — TDD, DDD, pragmatic SOLID, DRY/KISS — are the single source of truth for how every agent reasons and works.
@@ -51,13 +52,14 @@ Read tools used by the frontend-engineer work at any seat level.
 |---|---|---|
 | `ux-designer` | Authors design systems, components, frames, and variables directly in Figma; extracts `tokens.json`; wires Code Connect | `figma-design-system`, `figma-code-connect`, `design-theming` |
 | `frontend-engineer` | Reads Figma outputs and implements React + TanStack Start component libraries, pages, and templates | `react-component-library`, `code-connect-impl`, `pages-templates` |
-| `backend-engineer` | Builds Go / Node / Rust services deployed on AWS, Cloudflare, or Hetzner; hexagonal architecture, IaC-first | `backend-service-patterns`, `cloud-infra` |
+| `backend-engineer` | Builds Go / Node / Rust service & domain code, APIs, service-coupled infra; hexagonal architecture | `backend-service-patterns`, `cloud-infra` |
+| `devops-engineer` | Owns platform & DevEx: IaC provisioning, CI/CD & release automation, local dev loop, containers, observability | `cloud-infra` (shared), `devex`, `ci-cd` |
 | `systems-architect` | Designs system topology, defines service/bounded-context boundaries, writes ADRs, evaluates NFRs, selects technology with tradeoffs | `architecture` |
 | `data-architect` | Chooses stores per workload, models schemas, designs for vector/semantic search and RAG, aligns persistence with DDD aggregate boundaries | `data-modeling` |
 | `staff-engineer` | Reviews all engineer output for principle compliance, correctness, security, and performance | `code-review` (read-only toolset) |
 | `project-manager` | Plans and tracks epics as GitHub issues; assigns specialist agents; maps dependencies and critical path; does not dispatch agents | `project-management` |
 
-The five engineering and architecture agents — `frontend-engineer`, `backend-engineer`, `staff-engineer`, `systems-architect`, and `data-architect` — carry all four shared principle skills: `principles-tdd`, `principles-ddd`, `principles-pragmatic-solid`, `principles-dry-kiss`. The `ux-designer` and `project-manager` carry only `principles-dry-kiss`: `ux-designer` for design-token discipline, `project-manager` to keep the delivery process lean (KISS/YAGNI).
+The five engineering and architecture agents — `frontend-engineer`, `backend-engineer`, `staff-engineer`, `systems-architect`, and `data-architect` — carry all four shared principle skills: `principles-tdd`, `principles-ddd`, `principles-pragmatic-solid`, `principles-dry-kiss`. The `devops-engineer` carries three of the four — `principles-tdd`, `principles-pragmatic-solid`, `principles-dry-kiss` — but not `principles-ddd` (it does no domain modeling). The `ux-designer` and `project-manager` carry only `principles-dry-kiss`: `ux-designer` for design-token discipline, `project-manager` to keep the delivery process lean (KISS/YAGNI).
 
 ## Principles
 

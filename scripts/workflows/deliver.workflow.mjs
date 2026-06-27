@@ -54,6 +54,7 @@ const MODEL = {
 const SPECIALIST_MAP = {
   'backend-engineer':   'backend-engineer',
   'frontend-engineer':  'frontend-engineer',
+  'devops-engineer':    'devops-engineer',
   'ux-designer':        'ux-designer',
   'systems-architect':  'systems-architect',
   'data-architect':     'data-architect',
