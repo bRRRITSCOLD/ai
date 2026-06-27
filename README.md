@@ -1,6 +1,6 @@
 # ai
 
-Personal AI dev-team plugin for Claude Code. Six specialist agents — UX designer, frontend engineer, backend engineer, systems architect, staff engineer, and data architect — plus a shared library of engineering-principle skills they all operate by.
+Personal AI dev-team plugin for Claude Code. Seven specialist agents — UX designer, frontend engineer, backend engineer, systems architect, data architect, staff engineer, and project manager — plus a shared library of engineering-principle skills they all operate by.
 
 ## What it is
 
@@ -12,6 +12,7 @@ A Claude Code plugin that gives you a complete feature-delivery team:
 - **systems-architect** — designs system topology, defines service and bounded-context boundaries, authors ADRs, evaluates non-functional requirements, and selects technology with explicit tradeoffs.
 - **data-architect** — chooses stores per workload with explicit tradeoffs, designs schemas and indexes, models data for vector/semantic search and RAG pipelines, and aligns persistence schemas with DDD aggregate boundaries.
 - **staff-engineer** — reviews code from all five engineer agents against the team's principle skills plus correctness, security, and performance; does not write code.
+- **project-manager** — turns a goal or epic into a sequenced plan of GitHub issues with specialist-agent assignments and dependency tracking; does not dispatch agents (the main session does that).
 
 Shared principle skills — TDD, DDD, pragmatic SOLID, DRY/KISS — are the single source of truth for how every agent reasons and works.
 
@@ -54,8 +55,9 @@ Read tools used by the frontend-engineer work at any seat level.
 | `systems-architect` | Designs system topology, defines service/bounded-context boundaries, writes ADRs, evaluates NFRs, selects technology with tradeoffs | `architecture` |
 | `data-architect` | Chooses stores per workload, models schemas, designs for vector/semantic search and RAG, aligns persistence with DDD aggregate boundaries | `data-modeling` |
 | `staff-engineer` | Reviews all engineer output for principle compliance, correctness, security, and performance | `code-review` (read-only toolset) |
+| `project-manager` | Plans and tracks epics as GitHub issues; assigns specialist agents; maps dependencies and critical path; does not dispatch agents | `project-management` |
 
-The five engineering and architecture agents — `frontend-engineer`, `backend-engineer`, `staff-engineer`, `systems-architect`, and `data-architect` — carry all four shared principle skills: `principles-tdd`, `principles-ddd`, `principles-pragmatic-solid`, `principles-dry-kiss`. The `ux-designer` carries `principles-dry-kiss` for design-token discipline.
+The five engineering and architecture agents — `frontend-engineer`, `backend-engineer`, `staff-engineer`, `systems-architect`, and `data-architect` — carry all four shared principle skills: `principles-tdd`, `principles-ddd`, `principles-pragmatic-solid`, `principles-dry-kiss`. The `ux-designer` and `project-manager` carry only `principles-dry-kiss`: `ux-designer` for design-token discipline, `project-manager` to keep the delivery process lean (KISS/YAGNI).
 
 ## Principles
 

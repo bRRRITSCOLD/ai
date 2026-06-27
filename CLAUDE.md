@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-This is a **Claude Code plugin** — the `ai` plugin from the `bRRRITSCOLD/ai` marketplace entry. It provides six specialist agents and a shared library of engineering-principle skills for a full-stack feature-delivery team.
+This is a **Claude Code plugin** — the `ai` plugin from the `bRRRITSCOLD/ai` marketplace entry. It provides seven specialist agents and a shared library of engineering-principle skills for a full-stack feature-delivery team.
 
 ### Layout
 
@@ -20,6 +20,7 @@ agents/
   systems-architect.md # system topology, service boundaries, ADRs, NFRs, tech selection
   data-architect.md    # store selection, schema design, vector/RAG data modeling, aggregate-to-schema mapping
   staff-engineer.md    # read-only reviewer against all four principle skills
+  project-manager.md   # plans + tracks epics as GitHub issues; assigns agents; does not dispatch
 
 skills/
   principles-tdd/          # TDD discipline — single source of truth
@@ -38,6 +39,7 @@ skills/
   data-modeling/           # store selection, schema design, indexing, migrations, vector/RAG data design
   code-review/             # structured review checklist used by staff-engineer
   handoff/                 # session handoff — write before ending a work chunk
+  project-management/      # orchestration playbook for the main session: decompose, track, dispatch
 
 hooks/
   hooks.json           # SessionStart hook → session-start.sh (surfaces handoff)
