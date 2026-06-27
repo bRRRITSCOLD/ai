@@ -72,6 +72,10 @@ The four principle skills define a pragmatic engineering stance shared across ev
 
 Frame → Plan & track → Architecture → Data → Build loop → Finish. Run `/deliver <goal>` to start — it invokes the `feature-delivery` skill, which sequences the specialist agents across all phases and scales the process to the size of the goal.
 
+## Autonomous orchestration
+
+Once a goal is decomposed into GitHub issues, run `/orchestrate <goal or #issues>` to drive them to done automatically. The `autonomous-delivery` skill runs a dispatch → staff-review gate → squash-merge loop until all open issues are closed and CI is green, or until a guard trips (max iterations, K consecutive empty rounds, or token budget exhausted). A Workflow-tool reference script lives at `scripts/workflows/deliver.workflow.mjs` for deterministic fan-out with a built-in budget guard; review it before first use.
+
 ## Session hygiene
 
 Long sessions accumulate stale context. Use the `handoff` skill before ending a work chunk to write a structured summary the next session can resume from instantly. The `SessionStart` hook surfaces any pending handoff at the start of each new session.

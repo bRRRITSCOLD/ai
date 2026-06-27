@@ -42,9 +42,15 @@ skills/
   project-management/      # orchestration playbook for the main session: decompose, track, dispatch
   feature-delivery/        # end-to-end delivery phases: frame → plan → architecture → data → build → finish
   git-workflow/            # branching, Conventional Commits, PR sizing, squash-merge, release automation
+  autonomous-delivery/     # self-sustaining dispatch-review-merge loop with termination + runaway guards
 
 commands/
   deliver.md               # /deliver <goal> — front door for feature-delivery skill
+  orchestrate.md           # /orchestrate <goal or #issues> — drive issues to done via autonomous-delivery loop
+
+scripts/
+  workflows/
+    deliver.workflow.mjs   # Workflow-tool reference template: Scout → Build → Verify with budget guard
 
 hooks/
   hooks.json           # SessionStart hook → session-start.sh (surfaces handoff)
