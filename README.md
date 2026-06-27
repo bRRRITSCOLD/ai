@@ -68,6 +68,10 @@ The four principle skills define a pragmatic engineering stance shared across ev
 - **Pragmatic SOLID** — inject behind interfaces and keep Liskov substitution; cut ceremony (no interface-per-class without a real substitution need, no passthrough layers).
 - **DRY/KISS** — single source of truth for domain rules; rule of three before abstracting; KISS and YAGNI break ties when principles conflict.
 
+## Tech stack — opinionated, overridable
+
+The implementation skills default to a specific stack (TanStack Start, Go/Node/Rust, AWS/Cloudflare/Hetzner, shadcn/ui on Base UI) — the concrete examples are what make the output deep. For a project on a different stack, run `/init-stack` to interview and write `.ai/stack-profile.md`; the implementation skills read it and adapt, researching the chosen technology's idioms before building. The engineering discipline (TDD, DDD, pragmatic SOLID, DRY/KISS, ports-and-adapters, test tiers, naming) stays the same regardless of stack.
+
 ## End-to-end workflow
 
 Frame → Plan & track → Architecture → Data → Build loop → Finish. Run `/deliver <goal>` to start — it invokes the `feature-delivery` skill, which sequences the specialist agents across all phases and scales the process to the size of the goal.

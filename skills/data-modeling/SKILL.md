@@ -7,6 +7,8 @@ description: Applies data modeling and database design discipline. Invoked when 
 
 Senior-level data and database design practice: choose the right store for the workload with explicit tradeoffs, model schemas access-pattern-first, enforce consistency at aggregate boundaries, and keep polyglot persistence honest against KISS/YAGNI. Pragmatic over maximalist — the simplest store that satisfies real constraints wins.
 
+> **Stack profile:** store selection is already workload-driven here. Before designing, read `.ai/stack-profile.md` if present (see the `stack-profile` skill) — if it already declares the project's stores (and any cache/search/vector engine), design for those rather than re-litigating the choice; research the declared engine's modeling idioms (indexing, constraints, migration tooling) before writing schemas. The discipline (access-pattern-first, aggregate boundaries, honest polyglot) is invariant.
+
 ## Process
 
 ### 1. Choose the store per workload
