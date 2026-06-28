@@ -15,7 +15,7 @@ A Claude Code plugin that gives you a complete feature-delivery team:
 - **security-architect** — owns the security posture: threat models (STRIDE, trust boundaries), authentication/authorization design, secrets and key management, data protection, and supply-chain controls; runs the deep adversarial security audit on sensitive changes.
 - **lead-engineer** — the tech lead: turns the decided architecture into one coherent, sequenced, PR-sized implementation plan (build order, integration seams, test hooks), and makes cross-cutting technical decisions during the build. Bridges architecture and execution; the technical authority implementers escalate to.
 - **staff-engineer** — reviews work from the eight build agents (`lead-engineer`, `ux-designer`, `frontend-engineer`, `backend-engineer`, `devops-engineer`, `systems-architect`, `data-architect`, `security-architect`) against the team's principle skills plus correctness, security, and performance; does not write code.
-- **project-manager** — turns the lead-engineer's implementation plan into a sequenced set of GitHub issues with specialist-agent assignments and dependency tracking; does the work breakdown, not the technical planning, and does not dispatch agents (the main session does that).
+- **project-manager** — transcribes the lead-engineer's implementation plan into tracked GitHub issues and epics (task → issue, section → epic, mirroring the plan's dependencies and owners), then owns the live delivery state: status, critical path, blockers, and the durable ledger. It does not re-decide the task granularity (that's the lead-engineer's) or dispatch agents (the main session does that).
 
 Shared principle skills — TDD, DDD, pragmatic SOLID, DRY/KISS — are the single source of truth for how every agent reasons and works.
 
@@ -61,7 +61,7 @@ Read tools used by the frontend-engineer work at any seat level.
 | `security-architect` | Threat models, designs auth/secrets/data-protection + supply-chain controls, runs the deep security audit on sensitive changes | `threat-modeling`, `security-review` |
 | `lead-engineer` | Tech lead — turns the architecture into a sequenced, PR-sized implementation plan; makes cross-cutting technical decisions during the build | `superpowers:writing-plans`, `test-design`, `git-workflow` |
 | `staff-engineer` | Reviews all build output (incl. the implementation plan) for principle compliance, correctness, security, and performance | `code-review` (read-only toolset) |
-| `project-manager` | Turns the lead-engineer's plan into tracked GitHub issues; assigns specialist agents; maps dependencies and critical path; does the work breakdown, not the technical planning; does not dispatch agents | `project-management` |
+| `project-manager` | Transcribes the lead-engineer's plan into tracked issues/epics; owns live status, critical path, blockers, and the ledger; does not re-decide task units or dispatch agents | `project-management` |
 
 The six engineering and architecture agents — `lead-engineer`, `frontend-engineer`, `backend-engineer`, `staff-engineer`, `systems-architect`, and `data-architect` — carry all four shared principle skills: `principles-tdd`, `principles-ddd`, `principles-pragmatic-solid`, `principles-dry-kiss`. The `devops-engineer` carries three of the four — `principles-tdd`, `principles-pragmatic-solid`, `principles-dry-kiss` — but not `principles-ddd` (it does no domain modeling). The `ux-designer`, `project-manager`, and `security-architect` carry only `principles-dry-kiss`: `ux-designer` for design-token discipline, `project-manager` to keep the delivery process lean, and `security-architect` to keep controls proportionate to the ranked threat (KISS/YAGNI) — it also draws on `test-design` for abuse-case tests.
 
@@ -80,7 +80,7 @@ The implementation skills default to a specific stack (TanStack Start, Go/Node/R
 
 ## End-to-end workflow
 
-Frame → Architecture → Data → Plan the build → Decompose & track → Build loop → Finish. Run `/deliver <goal>` to start — it invokes the `feature-delivery` skill, which sequences the specialist agents across all phases and scales the process to the size of the goal. Note the order: the design is decided first, the `lead-engineer` turns it into the implementation plan, and the `project-manager` breaks that plan into issues — breakdown follows the technical plan, never precedes it.
+Frame → Architecture → Data → Plan the build → Track & coordinate → Build loop → Finish. Run `/deliver <goal>` to start — it invokes the `feature-delivery` skill, which sequences the specialist agents across all phases and scales the process to the size of the goal. Note the order: the design is decided first, the `lead-engineer` turns it into the implementation plan, and the `project-manager` transcribes that plan into tracked issues — tracking follows the technical plan, never precedes it.
 
 **New here? Read [docs/getting-started.md](docs/getting-started.md)** — the full `/init-stack → /deliver → /orchestrate` flow, the one-epic-per-session rhythm that keeps context clean and cost bounded, the autonomous-loop guards, and paste-ready kickoff + per-epic prompts.
 

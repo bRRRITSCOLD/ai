@@ -5,7 +5,7 @@ description: End-to-end feature delivery orchestration for the main Claude sessi
 
 # Feature Delivery Skill
 
-Full-stack delivery playbook for the main Claude Code session. Sequences the specialist agents — brainstorm → architecture → data → plan the build → decompose & track → build → finish — scaling the process to the real size of the goal. Small goals skip phases; large goals run them all. Note the order: the design is decided first, the `lead-engineer` turns it into a technical implementation plan, and only then does the `project-manager` break that plan into issues — the breakdown follows the technical plan, never precedes it.
+Full-stack delivery playbook for the main Claude Code session. Sequences the specialist agents — brainstorm → architecture → data → plan the build → track & coordinate → build → finish — scaling the process to the real size of the goal. Small goals skip phases; large goals run them all. Note the order: the design is decided first, the `lead-engineer` turns it into a technical implementation plan, and only then does the `project-manager` transcribe that plan into tracked issues — the tracking follows the technical plan, never precedes it.
 
 Apply `principles-dry-kiss`: phases are tools, not ceremony. Do only the phases that the goal actually needs.
 
@@ -47,17 +47,17 @@ Skip for features with no persistence layer, or where the existing schema is unc
 
 Invoke the `lead-engineer` agent (via `superpowers:writing-plans`) to turn the decided design + data model + threat model into one coherent implementation plan: an ordered, dependency-aware sequence of small, revertible, PR-sized tasks, each with its file-level approach, integration points, and the test cases (from `test-design`) it must satisfy. This is the **technical** plan — build order, integration seams, file contention — authored by the agent with the depth to make those calls.
 
-Output: an implementation plan at `docs/superpowers/plans/<feature-name>.md`. This is the input Phase 4 decomposes into issues. Skip only for a trivial single-task change where the order is obvious.
+Output: an implementation plan at `docs/superpowers/plans/<feature-name>.md`. This is the input Phase 4 transcribes into tracked issues. Skip only for a trivial single-task change where the order is obvious.
 
-### Phase 4 — Decompose & track
+### Phase 4 — Track & coordinate
 
-Invoke the `project-manager` agent (via the `project-management` skill) to turn the lead-engineer's implementation plan into the tracked execution contract:
-- Clarify done criteria
-- Break the plan into independently shippable tasks (epics → issues)
-- Create a GitHub issue per task with specialist-agent assignments, acceptance criteria, and `blockedBy` links
-- Produce a sequenced delivery roadmap (wave 0, wave 1, …)
+Invoke the `project-manager` agent (via the `project-management` skill) to represent the lead-engineer's implementation plan in the tracker and own the live state:
+- Confirm done criteria
+- Transcribe each plan task → a GitHub issue (carrying the plan's acceptance criteria + owner) and each plan section → an epic/milestone
+- Mirror the plan's dependencies as `blockedBy` links
+- Produce a sequenced delivery roadmap (wave 0, wave 1, …) and the durable progress ledger
 
-The PM does the **work breakdown** of the technical plan — it does not author the technical sequencing itself. Output: a GitHub issue list + local tracking doc. This becomes the execution contract for Phase 5.
+The PM **represents and tracks** the plan — it does not re-decide the task granularity or author the sequencing (those are the lead-engineer's). Output: a GitHub issue list + local tracking doc. This becomes the execution contract for Phase 5.
 
 ### Phase 5 — Build loop
 

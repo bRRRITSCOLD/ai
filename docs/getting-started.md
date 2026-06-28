@@ -21,7 +21,7 @@ The one idea to hold onto: **plan the whole goal once, then deliver one epic per
                                   └─────────────────────────────────────────────┘
 ```
 
-`/deliver` is the **whole pipeline incl. planning** — run it once to frame the goal, decompose it into epics + tracked issues, decide the architecture, and build the first vertical slice. `/orchestrate` is **just the build loop** on already-decomposed issues — run it once per epic thereafter.
+`/deliver` is the **whole pipeline incl. planning** — run it once to frame the goal, decide the architecture, have the lead-engineer plan the build, track it as epics + issues, and build the first vertical slice. `/orchestrate` is **just the build loop** on already-tracked issues — run it once per epic thereafter.
 
 ## Prerequisites
 
@@ -48,11 +48,11 @@ Run `/ai:deliver "<goal>"` once. It sequences the team across the upfront phases
 - **Architecture** (`systems-architect`) — topology, ADRs, NFRs; it **delegates the security posture to `security-architect`** (threat model — STRIDE, trust boundaries — for anything with auth, money, PII, or multi-tenant data) and **store choice to `data-architect`**.
 - **Data** (`data-architect`) — schemas, indexing, migrations.
 - **Plan the build** (`lead-engineer`) — turn the decided design into one coherent, sequenced, PR-sized **implementation plan** (build order, integration seams, test hooks). The technical plan comes from the tech lead, not the PM.
-- **Decompose & track** (`project-manager`) — break that implementation plan into **epics → tracked GitHub issues** with agent assignments and dependency edges. The PM does the work breakdown of the plan; it does not author the technical sequencing.
+- **Track & coordinate** (`project-manager`) — transcribe that implementation plan into **epics → tracked GitHub issues** (task → issue, section → epic, mirroring the plan's dependencies and owners), then own the live state: status, critical path, blockers, ledger. The PM represents and tracks the plan; it does not re-decide the task units or author the sequencing.
 - **Platform/DevEx** (`devops-engineer`) — stand up the local dev loop (`docker-compose`, task runner, seeds) and CI/CD **early**, so everyone builds against working infra.
 - **Build** — the first vertical slice, through the dispatch → review → merge loop.
 
-The order matters: **design → implementation plan → issue breakdown**. The PM never decomposes before the technical plan exists — it transcribes the lead-engineer's sequencing into issues.
+The order matters: **design → implementation plan → issue tracking**. The PM never creates issues before the technical plan exists — it transcribes the lead-engineer's tasks into the tracker, it doesn't invent them.
 
 End the kickoff session with the `handoff` skill so the next session resumes instantly.
 
@@ -128,7 +128,7 @@ squash-merges. One orchestration in this repo only.
 1. KICKOFF: run /ai:deliver to frame the goal and decide the architecture first —
    pull in security-architect to threat-model (multi-tenant isolation / auth / PII)
    and data-architect for the data model. THEN have lead-engineer turn that design
-   into the implementation plan, and only then project-manager decompose the plan
+   into the implementation plan, and only then project-manager transcribe the plan
    into EPICS + tracked GitHub issues (design → plan → issues, in that order). Have
    devops-engineer stand up the local dev loop + CI/CD early.
 

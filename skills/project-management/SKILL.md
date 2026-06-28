@@ -5,9 +5,9 @@ description: Orchestrates delivery of a goal or epic into tracked, agent-assigne
 
 # Project Management Skill
 
-Lightweight orchestration playbook for the main Claude Code session. Turns an **authored technical plan into** a sequenced set of GitHub issues with specialist-agent assignments, dependency tracking, and a clean dispatch loop — nothing more than that.
+Lightweight orchestration playbook for the main Claude Code session. **Transcribes** the `lead-engineer`'s implementation plan into tracked GitHub issues, then keeps the live delivery state and runs a clean dispatch loop — nothing more than that.
 
-This skill does the **work breakdown**, not the technical planning. The implementation plan — build order, integration seams, file-level approach — is authored by the `lead-engineer` (from the `systems-architect`'s design). Decompose that plan into issues; do not invent the technical sequencing here. If no plan exists yet, route the work to `lead-engineer` first.
+This skill does **representation + tracking**, not technical planning and not work decomposition. The implementation plan — the tasks, their order, dependencies, owners, and file-level approach — is authored by the `lead-engineer` (from the `systems-architect`'s design). The plan's tasks ARE the issues and its sections ARE the epics; transcribe them faithfully and mirror their dependencies. Do not re-decide the granularity or invent the sequencing here. If no plan exists yet, route the work to `lead-engineer` first.
 
 Apply `principles-dry-kiss`: do not over-process. No Gantt charts, no ceremony, no work that doesn't directly advance the goal.
 
@@ -33,22 +33,22 @@ The team of specialist agents this skill coordinates:
 
 ## Process
 
-### 1. Clarify the plan + done criteria
+### 1. Confirm the plan + done criteria
 
-Before decomposing, confirm the `lead-engineer`'s implementation plan exists, then state in one or two sentences:
+Confirm the `lead-engineer`'s implementation plan exists, then restate in one or two sentences:
 - What is being built or changed?
 - What does "done" look like? (acceptance criteria, user-visible outcome, metrics)
 
-If the goal is ambiguous, ask one focused clarifying question. If no technical plan exists yet, route the work to `lead-engineer` first — do not invent the build sequencing here.
+If no technical plan exists yet, route the work to `lead-engineer` first — there is nothing to transcribe without one. Do not invent the build sequencing here.
 
-### 2. Decompose the plan into tasks
+### 2. Map the plan's tasks to issues
 
-Break the implementation plan into tasks where each task is:
-- **Independently shippable** — produces a reviewable artifact (code, ADR, design file, schema)
-- **Owned by one specialist agent** — assign the best-fit agent from the table above
-- **Small enough to fit in a single agent session** — if it feels large, split it
+The plan already defines the units of work and their order — **do not re-decide the granularity**. Walk the plan and map each unit faithfully:
+- **Each plan task → one GitHub issue** — carry over the plan's acceptance criteria and named owner (assign the best-fit agent from the table only if the plan left it open)
+- **Each plan section → an epic/milestone** — the grouping follows the plan's structure
+- **Mirror the plan's dependencies** — record a `blocks`/`blockedBy` edge wherever the plan says one task depends on another; tasks the plan marks independent are parallelizable
 
-Record a `blocks`/`blockedBy` dependency for every task that cannot start until another finishes. Tasks with no `blockedBy` are parallelizable.
+If a "task" in the plan feels too large for a single agent session, that is a gap to send back to `lead-engineer`, not one for the PM to silently re-split.
 
 ### 3. Track as GitHub issues
 
