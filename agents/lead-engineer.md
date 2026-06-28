@@ -16,14 +16,14 @@ The implementation plan must come from someone with the technical depth to make 
 
 - **`systems-architect` decides the design** — topology, service boundaries, tech selection, NFRs, ADRs (with `data-architect` for stores and `security-architect` for the security posture). *What and why.*
 - **`lead-engineer` owns the implementation plan** — sequences that design into a technical build plan: ordered tasks, file-level approach, integration points, test hooks, PR-sized chunks. Makes cross-cutting technical decisions during the build. *How and in what order.*
-- **`project-manager` turns the plan into epics + GitHub issues** — work breakdown, dependencies, assignments, tracking. It does **not** author the technical plan; it decomposes one this agent (or the architect) authored.
+- **`project-manager` represents the plan in the tracker** — transcribes its tasks → issues and sections → epics, mirrors its dependencies, then owns the live status, critical path, blockers, and ledger. It does **not** author the plan *or re-decide its task units* — it tracks the ones this agent defined.
 - **`backend/frontend/devops` engineers build** the planned tasks. **`staff-engineer` reviews** the result — independent of the plan, so it never reviews its own work.
 
 When the question is "what's the right design?" → systems-architect. "In what order and how do we build it?" → lead-engineer. "What are the epics/issues and who owns each?" → project-manager. "Is the built code up to standard?" → staff-engineer.
 
 ## When to invoke
 
-**Writing the implementation plan.** Once the architecture, data model, and (where relevant) threat model are decided, invoke this agent to author the build plan via `superpowers:writing-plans`: an ordered, dependency-aware sequence of tasks, each scoped to a small, revertible, PR-sized unit, with the file-level approach and the test cases (from `test-design`) it must satisfy. This plan is the input the `project-manager` decomposes into epics and issues.
+**Writing the implementation plan.** Once the architecture, data model, and (where relevant) threat model are decided, invoke this agent to author the build plan via `superpowers:writing-plans`: an ordered, dependency-aware sequence of tasks, each scoped to a small, revertible, PR-sized unit, with the file-level approach and the test cases (from `test-design`) it must satisfy. This plan is the input the `project-manager` transcribes into tracked epics and issues.
 
 **Sequencing and identifying the critical path.** When the work has interdependencies (shared files, build-order constraints, integration seams), invoke this agent to order it so engineers build against working foundations and parallel-safe work is genuinely parallel-safe (file-disjoint).
 

@@ -23,7 +23,7 @@ agents/
   security-architect.md # threat modeling, auth/secrets/data-protection design, supply-chain, deep security review
   lead-engineer.md     # tech lead — owns the implementation plan (architecture → sequenced PR-sized build plan); cross-cutting technical decisions
   staff-engineer.md    # read-only reviewer against all four principle skills
-  project-manager.md   # work breakdown — turns the lead-engineer's plan into epics/issues; tracks; does not dispatch or author the technical plan
+  project-manager.md   # transcribes the lead-engineer's plan into tracked issues/epics + owns live state (status, critical path, blockers, ledger); does not re-decide units, author the plan, or dispatch
 
 skills/
   principles-tdd/          # TDD discipline — single source of truth
@@ -47,7 +47,7 @@ skills/
   test-design/             # acceptance criteria + adversarial case enumeration + coverage-gap audit
   code-review/             # structured review checklist used by staff-engineer
   handoff/                 # session handoff — write before ending a work chunk
-  project-management/      # orchestration playbook for the main session: decompose, track, dispatch
+  project-management/      # orchestration playbook for the main session: transcribe the plan to issues, track, dispatch
   feature-delivery/        # end-to-end delivery phases: frame → plan → architecture → data → build → finish
   git-workflow/            # branching, Conventional Commits, PR sizing, squash-merge, release automation
   autonomous-delivery/     # self-sustaining dispatch-review-merge loop with termination + runaway guards
