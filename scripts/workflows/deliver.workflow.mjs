@@ -46,9 +46,24 @@ const MODEL = {
   implement: { model: 'sonnet', effort: 'medium', ...(args?.models?.implement) },
   fix:       { model: 'sonnet', effort: 'medium', ...(args?.models?.fix) },
   review:    { effort: 'high',                     ...(args?.models?.review) },   // model omitted => inherit (top model); the gate stays sharp
+  security:  { effort: 'high',                     ...(args?.models?.security) },  // deep audit — top model (inherit), like the review gate
   merge:     { model: 'haiku',  effort: 'low',    ...(args?.models?.merge) },
   verify:    { model: 'sonnet', effort: 'low',    ...(args?.models?.verify) },
 };
+
+// --- Security gate ---
+// staff-engineer reviews every PR (general gate). security-architect runs a DEEP
+// audit as a SECOND gate, but only when it's worth the cost:
+//   'sensitive' (default) — only when the staff reviewer flags the diff as touching
+//                           auth, crypto, secrets, untrusted input, tenancy, or supply-chain.
+//   'always'              — audit every PR (high assurance, higher cost).
+//   'off'                 — staff gate only (no security audit).
+// Override per run: args: { securityReview: 'always' }.
+const SECURITY_REVIEW = ['always', 'off', 'sensitive'].includes(args?.securityReview)
+  ? args.securityReview
+  : 'sensitive';
+const needSecurity = (sensitive) =>
+  SECURITY_REVIEW === 'always' || (SECURITY_REVIEW !== 'off' && sensitive);
 
 // Specialist agents by label (matches GitHub issue assignment conventions)
 const SPECIALIST_MAP = {
@@ -156,6 +171,70 @@ if (scoutResult.error) {
       { label: `unclaim-${issueNumber}`, phase: 'Build', ...MODEL.merge,
         schema: { type: 'object', properties: { unclaimed: { type: 'boolean' } }, required: [] } },
     );
+
+  // security-architect DEEP audit of a PR (the second gate). Read-only; returns a verdict.
+  const securityAudit = (prNumber, branch, issueNumber, pass) =>
+    agent(
+      `You are the security-architect agent. Run the deep adversarial security audit
+      (security-review skill) on PR #${prNumber} (branch: ${branch}) for issue #${issueNumber}${pass ? ' after a security fix pass' : ''}.
+      This is read-only — do NOT merge or edit; return findings only.
+
+      Audit against the security-review checklist: authn/sessions, authz/tenancy (IDOR,
+      tenant-scoping, CSRF), injection + mass-assignment, crypto/secrets, data exposure,
+      availability + security logging, supply-chain/config. Apply the project's threat
+      model if one exists; otherwise the checklist is the floor.
+
+      Approve ONLY if there are no Critical or High findings.
+      Return approved=true if it clears that bar, else approved=false with specific,
+      severity-ranked findings (location -> vulnerability -> exploit -> fix).`,
+      { label: `security-${issueNumber}${pass ? '-refix' : ''}`, phase: 'Build', ...MODEL.security,
+        schema: { type: 'object', properties: { approved: { type: 'boolean' }, findings: { type: 'string' } }, required: ['approved'] } },
+    );
+
+  // The merge path with the optional security gate. Returns true if merged.
+  // staff has already approved the PR; if the diff is security-sensitive (or the
+  // run forces 'always'), security-architect must ALSO approve. One security fix
+  // pass on non-approval, then flag open — mirrors the staff fix-pass discipline.
+  const securityGateThenMerge = async (specialist, prNumber, branch, issueNumber, sensitive) => {
+    if (!needSecurity(sensitive)) {
+      await mergePr(prNumber);
+      await unclaim(issueNumber);
+      log(`[#${issueNumber}] PR #${prNumber} merged (staff approved; no security gate).`);
+      return true;
+    }
+    log(`[#${issueNumber}] Security-sensitive — security-architect auditing PR #${prNumber}.`);
+    const sec = await securityAudit(prNumber, branch, issueNumber, false);
+    if (sec.approved) {
+      await mergePr(prNumber);
+      await unclaim(issueNumber);
+      log(`[#${issueNumber}] PR #${prNumber} merged (staff + security approved).`);
+      return true;
+    }
+    log(`[#${issueNumber}] Security audit found issues. One security fix pass.`);
+    const fix = await agent(
+      `You are the ${specialist} agent.
+
+      PR #${prNumber} (branch: ${branch}) for issue #${issueNumber} failed the security-architect audit.
+
+      Security findings to remediate:
+      ${sec.findings}
+
+      Check out branch ${branch} in your own worktree, apply the security fixes, COMMIT,
+      and push to the same branch. Do not open a new PR. Return the same prNumber and branch.`,
+      { label: `securityfix-${issueNumber}`, phase: 'Build', isolation: 'worktree', ...MODEL.fix,
+        schema: { type: 'object', properties: { prNumber: { type: 'number' }, branch: { type: 'string' } }, required: ['prNumber', 'branch'] } },
+    );
+    const sec2 = await securityAudit(fix.prNumber, fix.branch, issueNumber, true);
+    if (sec2.approved) {
+      await mergePr(fix.prNumber);
+      await unclaim(issueNumber);
+      log(`[#${issueNumber}] PR #${fix.prNumber} merged after security fix pass.`);
+      return true;
+    }
+    await unclaim(issueNumber);
+    log(`[#${issueNumber}] Security audit still failing after fix — flagged open (claim released). Findings: ${sec2.findings}`);
+    return false;
+  };
 
   while (
     openIssues.length > 0 &&
@@ -265,6 +344,11 @@ if (scoutResult.error) {
           Apply: code-review skill, principles-tdd, principles-ddd, principles-pragmatic-solid, principles-dry-kiss.
           Check: correctness, security, performance, principle compliance.
 
+          Also set securitySensitive=true if the diff touches authentication,
+          authorization/tenancy, cryptography/secrets, untrusted input, data exposure,
+          or dependencies/supply-chain — so a deeper security-architect audit runs
+          before merge. (This is the general pass; depth is the security gate's job.)
+
           If it meets the bar: return approved=true.
           If changes are needed: return approved=false with specific, actionable findings.`,
           {
@@ -274,8 +358,9 @@ if (scoutResult.error) {
             schema: {
               type: 'object',
               properties: {
-                approved:  { type: 'boolean' },
-                findings:  { type: 'string' },
+                approved:          { type: 'boolean' },
+                findings:          { type: 'string' },
+                securitySensitive: { type: 'boolean' },
               },
               required: ['approved'],
             },
@@ -283,16 +368,16 @@ if (scoutResult.error) {
         );
 
         if (review.approved) {
-          await mergePr(implResult.prNumber);
-          // Defensively release the claim: the PR's `Closes #n` should auto-close
-          // the issue (then scout's --state open hides it), but if auto-close
-          // doesn't fire, removing the label prevents the issue being excluded
-          // forever as "in-progress".
-          await unclaim(issue.number);
-          log(`[#${issue.number}] PR #${implResult.prNumber} merged.`);
-          closedThisRun.add(issue.number);
-          // Remove from openIssues now that it's merged
-          openIssues = openIssues.filter((i) => i.number !== issue.number);
+          // staff approved -> run the optional security gate, then merge (the gate
+          // handles merge + unclaim, or flags open on a failed security audit).
+          const merged = await securityGateThenMerge(
+            specialist, implResult.prNumber, implResult.branch, issue.number,
+            review.securitySensitive === true,
+          );
+          if (merged) {
+            closedThisRun.add(issue.number);
+            openIssues = openIssues.filter((i) => i.number !== issue.number);
+          }
         } else {
           // VERIFICATION guard: any non-approval gets exactly one fix pass,
           // then one re-review, before the issue is flagged open.
@@ -331,6 +416,8 @@ if (scoutResult.error) {
 
             Re-review PR #${fixResult.prNumber} (branch: ${fixResult.branch}) for issue #${issue.number} after a fix pass.
             Apply the same code-review skill and principle skills as before.
+            Set securitySensitive=true if the diff touches auth, authz/tenancy, crypto/secrets,
+            untrusted input, data exposure, or dependencies/supply-chain.
 
             If it now meets the bar: return approved=true.
             If still failing: return approved=false with specific findings (this is the last pass — the issue will be flagged open).`,
@@ -341,8 +428,9 @@ if (scoutResult.error) {
               schema: {
                 type: 'object',
                 properties: {
-                  approved: { type: 'boolean' },
-                  findings: { type: 'string' },
+                  approved:          { type: 'boolean' },
+                  findings:          { type: 'string' },
+                  securitySensitive: { type: 'boolean' },
                 },
                 required: ['approved'],
               },
@@ -350,11 +438,16 @@ if (scoutResult.error) {
           );
 
           if (reReview.approved) {
-            await mergePr(fixResult.prNumber);
-            await unclaim(issue.number);  // defensive: see merge-path note above
-            log(`[#${issue.number}] PR #${fixResult.prNumber} merged after fix pass.`);
-            closedThisRun.add(issue.number);
-            openIssues = openIssues.filter((i) => i.number !== issue.number);
+            // staff re-approved -> security gate, then merge (gate handles merge/unclaim/flag-open)
+            const merged = await securityGateThenMerge(
+              specialist, fixResult.prNumber, fixResult.branch, issue.number,
+              (reReview.securitySensitive ?? review.securitySensitive) === true,
+            );
+            if (merged) {
+              log(`[#${issue.number}] PR #${fixResult.prNumber} merged after fix pass.`);
+              closedThisRun.add(issue.number);
+              openIssues = openIssues.filter((i) => i.number !== issue.number);
+            }
           } else {
             await unclaim(issue.number);
             log(`[#${issue.number}] Still failing after fix pass — flagged open (claim released for retry). Findings: ${reReview.findings}`);

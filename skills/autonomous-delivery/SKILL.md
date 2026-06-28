@@ -27,9 +27,12 @@ until (open issues == 0) or (iterations >= CAP) or (budget exhausted):
     report blocker; stop
   for issue in ready (respecting parallel-safe vs serial):
     dispatch specialist (model:'sonnet')  -> branch + implement + PR (git-workflow)
-    dispatch staff-engineer review (model: OMIT => inherit top tier)  -> GATE
+    dispatch staff-engineer review (model: OMIT => inherit top tier)  -> GATE 1
     if approved:
-      squash-merge per git-workflow
+      if security-sensitive (or securityReview:'always'):     -> GATE 2
+        dispatch security-architect deep audit (inherit top tier)
+        if not approved: ONE security fix pass -> re-audit; still failing -> flag + leave open
+      squash-merge per git-workflow   (only after all required gates approve)
     else:
       ONE fix pass -> re-review
       if still failing: flag + leave open
@@ -58,6 +61,7 @@ Parallelism without isolation **loses work**. Two agents in one working tree rac
 |---|---|
 | **TERMINATION** | The dispatch loop drains ready issues until open issues = 0 (or a RUNAWAY/budget guard trips). It then runs a **Verify** step — `node scripts/ci/validate.mjs` plus the project's test suites. A red Verify is reported as a non-success outcome (flag + stop), never silently swallowed. The goal counts as *reached* only when open issues = 0 AND validate is green AND tests pass. |
 | **VERIFICATION** | Every PR passes through the staff-engineer review gate before merge. The reviewer is read-only and returns findings only — the **merge runs at the main-session/workflow level**, only after the gate approves. Never merge unreviewed. On non-approval: exactly one fix pass, then one re-review; if it still fails, flag the issue open and continue to the next. |
+| **SECURITY GATE** | A second, conditional gate: after staff approves, `security-architect` runs the deep `security-review` audit when the diff is **security-sensitive** (the staff reviewer flags it) or the run forces `securityReview: 'always'`. Both gates must approve to merge; a failed audit gets one security fix pass, then re-audit, else flag open — same discipline as the review gate. Default `'sensitive'` keeps cost down (deep audit only on auth/crypto/secrets/untrusted-input/tenancy/supply-chain diffs); `'off'` disables it. Read-only, top-tier model. |
 | **RUNAWAY** | Hard max-iteration CAP (default **20** rounds). Also stop when `budget.remaining() < THRESHOLD` (default **5000**) if running via the Workflow tool. (A consecutive-empty-rounds counter — default **3** — exists as a backstop, but because each issue is attempted at most once per run, the loop normally terminates first by exhausting *ready* issues — the CAP and budget are the load-bearing guards.) All three are **user-overridable** — see "Tuning the guards" below. |
 | **DURABLE STATE** | GitHub issues + a progress ledger file (`.superpowers/delivery-progress.md`) are the resume map. They survive crash and context compaction. On resume, trust closed issues and `git log` over in-memory state — never reconstruct history from memory. |
 | **CONTEXT-ROT** | Run the `handoff` skill before ending any session with open issues. Prefer a fresh Claude Code session between phases or large work chunks — long sessions accumulate stale reasoning. |
@@ -84,6 +88,7 @@ This is the concrete Scout → Build → Verify application of the **required Mo
 | Scout (list/parse issues) | haiku | low | mechanical: run `gh`, parse JSON |
 | Implement / fix | sonnet | medium | strong, fast, cheap for spec→code |
 | **Review / re-review (the GATE)** | **inherit (session top model, e.g. Opus)** | **high** | never downgrade the gate — it's the quality backstop |
+| **Security audit (2nd gate, conditional)** | **inherit (session top model)** | **high** | `security-architect` deep audit — same tier as the review gate |
 | Merge | haiku | low | runs one `gh pr merge` |
 | Verify (CI + tests) | sonnet | low | run commands, interpret pass/fail |
 
