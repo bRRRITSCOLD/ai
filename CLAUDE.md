@@ -35,6 +35,7 @@ skills/
   react-component-library/ # typed, accessible React components from tokens
   code-connect-impl/       # *.figma.tsx mapping files; npx figma connect publish (owned by frontend-engineer)
   pages-templates/         # TanStack Start layout templates and page routes
+  technical-seo/           # on-page/technical SEO: metadata, JSON-LD, sitemap, crawlable render, CWV (owned by frontend-engineer)
   backend-service-patterns/ # hexagonal arch, per-language patterns
   cloud-infra/             # AWS/Cloudflare/Hetzner IaC and observability (backend + devops)
   devex/                   # local dev loop: docker-compose deps, task runner, seeds, pre-commit
