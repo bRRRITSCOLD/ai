@@ -68,6 +68,8 @@ For each remaining epic, start a **fresh session** (small context = sharp Claude
    /compainy:orchestrate "<epic name or #issue numbers> --rounds 12 --budget 400000"
    ```
    The loop runs dispatch → `staff-engineer` review gate → squash-merge until the epic's issues are closed or a guard trips. It's **serial by default** (safe); only add `args.parallel: true` via the Workflow tool once the epic's issues are genuinely file-disjoint.
+
+   **Scoping the epic:** in mode B (above) name the `#issue numbers`. In **mode A** (the Workflow tool — recommended, see below) label each epic's issues (`wave-0`, `wave-1`, …) and scope with `args: { labels: "wave-1" }` instead of listing numbers — the loop drives only that wave and never touches `epic` container issues.
 3. When the epic is done (or a guard trips), run `handoff` and start a new session for the next epic.
 
 Why one epic per cycle: bounded context (cheaper, sharper), bounded blast radius (a bad run damages one epic, not the product), bounded cost (the `--rounds`/`--budget` caps apply per cycle), and durable resumption (issues + ledger survive the session boundary so any fresh session can pick up).
@@ -92,9 +94,11 @@ So mode B isn't *missing* anything — it's the same `autonomous-delivery` loop,
 Run the autonomous loop via the Workflow tool (mode A): locate the installed
 compainy plugin's scripts/workflows/deliver.workflow.mjs
 (find ~/.claude/plugins -name deliver.workflow.mjs) and run it with the Workflow
-tool against this repo, passing:
-  args: { maxRounds: 12, budgetThreshold: 50000, securityReview: "sensitive" }
+tool against this repo, scoped to one wave, passing:
+  args: { labels: "wave-1", maxRounds: 12, budgetThreshold: 50000, securityReview: "sensitive" }
 ```
+
+(Drop `labels` to drive every open issue; keep it to do one epic/wave per session. `epic`-labeled issues are never picked up either way.)
 
 The phrase **"run it with the Workflow tool"** is the opt-in (the Workflow tool never fires without it). The agents run in *this repo's* working directory, so their `gh`/`git` target this repo's issues. `args` is read by the script — overrides any of `maxRounds`, `maxEmptyRounds`, `budgetThreshold`, `parallel`, `models`, `securityReview`, `labels`, `excludeLabels` (omitted keys keep their defaults).
 
