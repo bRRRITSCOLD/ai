@@ -7,6 +7,8 @@ description: Composes React routes and layout templates with TanStack Start from
 
 Compose the built React component library into layout templates and TanStack Start file-based routes that faithfully implement the UX designer's page/template structure. Routes are thin coordinators — they fetch data via typed loaders and delegate rendering to components. Domain logic lives in the backend or in dedicated service modules, never in routes.
 
+> **Public/indexable routes:** set per-route metadata (title, description, canonical, Open Graph, JSON-LD) **server-side** via the route's `head()`/meta API so it renders in the initial HTML — see the `technical-seo` skill for the full discipline (centralized `buildMeta`, structured data, sitemap, crawlable-rendering check). Don't hand-write `<head>` tags per route; feed them from one builder.
+
 > **Stack profile:** TanStack Start + TanStack Form + nuqs + zod are defaults. Before building, read `.ai/stack-profile.md` if present (see the `stack-profile` skill). If it names a different framework (Next.js, Remix, SvelteKit, …) or form/state libraries, treat the route/form/state examples as patterns to translate — research the chosen framework's routing, data-loading, and form idioms first, then build to the same discipline (thin routes, domain logic out of the view, shared validation schema). Absent or matching ⇒ use these defaults directly.
 
 ## Process
