@@ -181,6 +181,33 @@ if (scoutResult.error) {
         schema: { type: 'object', properties: { unclaimed: { type: 'boolean' } }, required: [] } },
     );
 
+  // Flag an issue open for rework: persist the reviewer's findings as an issue
+  // COMMENT plus a `needs-rework` label, THEN release the claim. Without this the
+  // failure context (why it failed the gate) lives only in the workflow log, so
+  // the next run / a human re-opens the issue blind. This replaces a bare unclaim
+  // at the flag-open sites — it also removes the in-progress label.
+  const flagOpen = (issueNumber, kind, findings) =>
+    agent(
+      `Issue #${issueNumber} failed ${kind} and is being flagged open for rework.
+      Persist the failure context on the GitHub issue so the next engineer (or a
+      human) has it — do NOT merge, do NOT edit code. Run, in order:
+
+      1. Ensure the label exists (ignore the error if it already does):
+         gh label create needs-rework --color D93F0B --description "Failed review/audit; needs another engineering pass" 2>/dev/null || true
+      2. Post the reviewer findings as a comment. Write the verbatim findings
+         block below to a temp file and post it with --body-file so quotes and
+         newlines survive (prepend a "Flagged for rework after ${kind}:" header):
+         FINDINGS (verbatim):
+         ---
+         ${findings}
+         ---
+      3. gh issue edit ${issueNumber} --add-label needs-rework --remove-label in-progress
+
+      Return { flagged: boolean }.`,
+      { label: `flag-open-${issueNumber}`, phase: 'Build', ...MODEL.merge,
+        schema: { type: 'object', properties: { flagged: { type: 'boolean' } }, required: [] } },
+    );
+
   // security-architect DEEP audit of a PR (the second gate). Read-only; returns a verdict.
   const securityAudit = (prNumber, branch, issueNumber, pass) =>
     agent(
@@ -240,8 +267,8 @@ if (scoutResult.error) {
       log(`[#${issueNumber}] PR #${fix.prNumber} merged after security fix pass.`);
       return true;
     }
-    await unclaim(issueNumber);
-    log(`[#${issueNumber}] Security audit still failing after fix — flagged open (claim released). Findings: ${sec2.findings}`);
+    await flagOpen(issueNumber, 'the security-architect audit after a fix pass', sec2.findings);
+    log(`[#${issueNumber}] Security audit still failing after fix — flagged open for rework (findings posted to issue, claim released).`);
     return false;
   };
 
@@ -458,8 +485,8 @@ if (scoutResult.error) {
               openIssues = openIssues.filter((i) => i.number !== issue.number);
             }
           } else {
-            await unclaim(issue.number);
-            log(`[#${issue.number}] Still failing after fix pass — flagged open (claim released for retry). Findings: ${reReview.findings}`);
+            await flagOpen(issue.number, 'staff re-review after a fix pass', reReview.findings);
+            log(`[#${issue.number}] Still failing after fix pass — flagged open for rework (findings posted to issue, claim released).`);
           }
         }
 
