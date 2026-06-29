@@ -190,10 +190,24 @@ if (scoutResult.error) {
   // worker dispatched only after the review gate has approved.
   const mergePr = (prNumber) =>
     agent(
-      `Run this shell command and report the result:
-      gh pr merge ${prNumber} --squash --delete-branch
+      `Merge a pull request. The MERGE is the only step that must succeed; branch
+      cleanup is best-effort and must NEVER change the result.
 
-      Return { merged: boolean, output: string }.`,
+      1. Merge it (squash):
+         gh pr merge ${prNumber} --squash
+         If gh says the PR is already merged, treat that as success too.
+
+      2. Best-effort delete the REMOTE branch only — IGNORE any error. Do NOT pass
+         --delete-branch, and do NOT delete or check out any LOCAL branch: the head
+         branch is often held by an isolation git worktree that must not be disturbed
+         (deleting it errors "cannot delete branch '...' used by worktree at ..."
+         — that error is exactly what we are avoiding here).
+         branch=$(gh pr view ${prNumber} --json headRefName -q .headRefName)
+         git push origin --delete "$branch" 2>/dev/null || true
+
+      Return { merged: true } if the PR is merged (now or already), { merged: false }
+      ONLY if the merge itself failed. Put any branch-cleanup warning in output;
+      a failed cleanup is still merged: true.`,
       {
         label: `merge-pr-${prNumber}`,
         phase: 'Build',
@@ -213,12 +227,15 @@ if (scoutResult.error) {
   // (otherwise scout would skip it forever as "claimed").
   const unclaim = (issueNumber) =>
     agent(
-      `Run this shell command and report the result:
+      `Run this shell command:
       gh issue edit ${issueNumber} --remove-label in-progress
 
-      Return { unclaimed: boolean }.`,
+      This SUCCEEDS if the command exits 0 OR if the label was already absent
+      (gh may print "label not found" / "not labeled" — the issue is still no
+      longer claimed, which is success). Return { unclaimed: true } on success;
+      return { unclaimed: false } ONLY if the command genuinely failed to run.`,
       { label: `unclaim-${issueNumber}`, phase: 'Build', ...MODEL.merge,
-        schema: { type: 'object', properties: { unclaimed: { type: 'boolean' } }, required: [] } },
+        schema: { type: 'object', properties: { unclaimed: { type: 'boolean' } }, required: ['unclaimed'] } },
     );
 
   // Flag an issue open for rework: persist the reviewer's findings as an issue
@@ -243,9 +260,10 @@ if (scoutResult.error) {
          ---
       3. gh issue edit ${issueNumber} --add-label needs-rework --remove-label in-progress
 
-      Return { flagged: boolean }.`,
+      Return { flagged: true } once the comment is posted and the labels are updated
+      (success); return { flagged: false } ONLY if a step genuinely failed to run.`,
       { label: `flag-open-${issueNumber}`, phase: 'Build', ...MODEL.merge,
-        schema: { type: 'object', properties: { flagged: { type: 'boolean' } }, required: [] } },
+        schema: { type: 'object', properties: { flagged: { type: 'boolean' } }, required: ['flagged'] } },
     );
 
   // security-architect DEEP audit of a PR (the second gate). Read-only; returns a verdict.
