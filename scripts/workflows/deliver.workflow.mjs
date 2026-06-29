@@ -124,7 +124,7 @@ const scoutResult = await agent(
               labels:    { type: 'array', items: { type: 'string' } },
               blockedBy: { type: 'array', items: { type: 'number' } },
             },
-            required: ['number', 'title', 'agent', 'blockedBy'],
+            required: ['number', 'title', 'agent', 'labels', 'blockedBy'],
           },
         },
         totalOpen: { type: 'number' },
