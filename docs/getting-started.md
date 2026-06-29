@@ -72,6 +72,32 @@ For each remaining epic, start a **fresh session** (small context = sharp Claude
 
 Why one epic per cycle: bounded context (cheaper, sharper), bounded blast radius (a bad run damages one epic, not the product), bounded cost (the `--rounds`/`--budget` caps apply per cycle), and durable resumption (issues + ledger survive the session boundary so any fresh session can pick up).
 
+## Two ways the loop runs — and the one you want for cost
+
+`/orchestrate` can run the loop two different ways, and **which one you get matters for your bill.** By default it runs **mode B**; the cheaper, more capable path is **mode A**, but you have to ask for it explicitly.
+
+| | **Mode A — the Workflow tool** (recommended) | **Mode B — inline** (the `/orchestrate` default) |
+|---|---|---|
+| What runs | the reference script `deliver.workflow.mjs` | the main session runs the loop step by step |
+| Model tiering | **automatic** — scout/merge on haiku, implement on sonnet, the review + security gates on the top model | **manual** — you must set the Agent `model` per dispatch, or it silently inherits the session's top model (Opus) for *everything* |
+| Guards | `maxRounds` / `maxEmptyRounds` / `budgetThreshold` enforced by the script | you enforce them yourself |
+| Security gate | `security-architect` 2nd gate, conditional (`securityReview`) | not wired |
+| Runs | in the background (watch `/workflows`) | inline in your session |
+
+**Bare `/orchestrate` stays in mode B.** It does *not* auto-pick the script. To get mode A you must explicitly invoke the **Workflow tool**:
+
+```
+Run the autonomous loop via the Workflow tool (mode A): locate the installed
+compainy plugin's scripts/workflows/deliver.workflow.mjs
+(find ~/.claude/plugins -name deliver.workflow.mjs) and run it with the Workflow
+tool against this repo, passing:
+  args: { maxRounds: 12, budgetThreshold: 50000, securityReview: "sensitive" }
+```
+
+The phrase **"run it with the Workflow tool"** is the opt-in (the Workflow tool never fires without it). The agents run in *this repo's* working directory, so their `gh`/`git` target this repo's issues. `args` is read by the script — overrides any of `maxRounds`, `maxEmptyRounds`, `budgetThreshold`, `parallel`, `models`, `securityReview` (omitted keys keep their defaults).
+
+> If you'd rather keep typing `/orchestrate`, append `— use the Workflow tool (mode A)` to force the script. Otherwise expect mode B, where you must tell it to tier models (`dispatch implementers on Sonnet; only the review/security gates on Opus`) or it runs everything at top-tier cost.
+
 ## Cost & safety guards (how runaway is prevented)
 
 | Guard | What it does | How to set |
@@ -82,8 +108,11 @@ Why one epic per cycle: bounded context (cheaper, sharper), bounded blast radius
 | **Budget** | stop when remaining tokens < N | `--budget N` (default 5000; `0` disables) |
 | **One orchestration/repo** | no concurrent runs double-dispatching | operational rule |
 | **Review gate** | every PR through `staff-engineer` before merge; one fix pass then flag-open | always on |
-| **Model tiering** | cheap models for mechanical steps, top model for the review gate | per-dispatch (Workflow path) |
+| **Security gate** | `security-architect` deep audit as a 2nd gate on security-sensitive diffs (mode A) | `args.securityReview`: `sensitive` (default) / `always` / `off` |
+| **Model tiering** | cheap models for mechanical steps, top model for the review/security gates | **automatic in mode A**; manual per-dispatch in mode B |
 | **Commit-early + claim** | implementers commit scaffolds immediately; issues are claimed so two agents never collide | always on |
+
+`budgetThreshold: 0` (or `--budget 0`) **disables** the budget guard — set a real floor (e.g. `50000`) for unattended runs so the loop stops before exhausting your tokens. These knobs only take effect in **mode A** (the script reads `args`); in mode B you enforce them yourself.
 
 Per-epic, set `--rounds`/`--budget` to the epic's size. Small epic → `--rounds 8`; large → `--rounds 15`. Keep epics small enough that one cycle finishes one epic.
 

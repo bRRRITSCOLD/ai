@@ -98,13 +98,24 @@ The reference script encodes this in its `MODEL` map and applies it per stage; o
 
 ### (A) Workflow tool — preferred for a bounded goal
 
-Run the reference script via the Workflow tool:
+Run the reference script via the **Workflow tool**, passing its absolute path as `scriptPath`:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/scripts/workflows/deliver.workflow.mjs
+Workflow({
+  scriptPath: "<plugin>/scripts/workflows/deliver.workflow.mjs",
+  args: { maxRounds: 12, budgetThreshold: 50000, securityReview: "sensitive" },
+})
 ```
 
-This gives deterministic fan-out with a built-in budget guard and explicit Scout → Build → Verify phases. The Workflow tool requires explicit opt-in by the user. Review the script before first real use — it creates PRs and merges only after the staff-engineer review gate passes.
+Resolve `<plugin>` at runtime — it's `${CLAUDE_PLUGIN_ROOT}/scripts/workflows/deliver.workflow.mjs`, or locate the installed copy with `find ~/.claude/plugins -name deliver.workflow.mjs`. The script is a **reference template reached by `scriptPath`, not a registered workflow name** — `Workflow({ name: 'deliver' })` will not find it.
+
+This gives deterministic Scout → Build → Verify fan-out, **automatic model tiering** (scout/merge haiku, implement sonnet, review + security gates inherit top), the guard caps, and the conditional security gate. The agents run in the **session's working directory**, so their `gh`/`git` target this repo's issues.
+
+**Opt-in + the two gotchas:**
+- The Workflow tool fires only on explicit user opt-in (e.g. "run it with the Workflow tool"). **`/orchestrate` does NOT auto-select mode A** — bare `/orchestrate` runs mode B below. To force the script from the command, the user appends "use the Workflow tool (mode A)".
+- All overrides go through `args`: `maxRounds`, `maxEmptyRounds`, `budgetThreshold` (a literal `0` disables the budget check — set a real floor for unattended runs), `parallel`, `models`, `securityReview` (`sensitive` default / `always` / `off`). The script normalizes `args` whether it arrives as an object or a JSON string, so either is safe; omitted keys keep their defaults.
+
+Review the script before first real use — it creates PRs and merges only after the staff-engineer review gate (and, on sensitive diffs, the security-architect gate) passes.
 
 ### (B) `/loop`, ScheduleWakeup, or plain main-session dispatch
 
