@@ -31,12 +31,18 @@ until (open issues == 0) or (iterations >= CAP) or (budget exhausted):
     if approved:
       if security-sensitive (or securityReview:'always'):     -> GATE 2
         dispatch security-architect deep audit (inherit top tier)
-        if not approved: ONE security fix pass -> re-audit; still failing -> flag + leave open
+        if not approved: ONE security fix pass -> re-audit; still failing -> flag open
       squash-merge per git-workflow   (only after all required gates approve)
     else:
       ONE fix pass -> re-review
-      if still failing: flag + leave open
+      if still failing: flag open
   iterations++
+
+# flag open = persist the failure context, don't drop it: post the reviewer/audit
+# findings as an issue COMMENT + add a `needs-rework` label, THEN release the
+# in-progress claim (so scout re-picks it next run). The issue stays OPEN; the next
+# engineering pass reads WHY it failed instead of re-opening it blind. Never re-loop
+# the same issue this run — one fix pass is the cap (cost guard against thrash).
 
 done when: 0 open issues AND CI/validate green AND tests pass
 ```
